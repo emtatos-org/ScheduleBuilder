@@ -4,6 +4,7 @@ import ScheduleGrid from './components/ScheduleGrid';
 import PassModal from './components/PassModal';
 import AddPassModal from './components/AddPassModal';
 import StatisticsView from './components/StatisticsView';
+import ParallelView from './components/ParallelView';
 import { createDefaultSchedule } from './data/defaultSchedule';
 import { saveSchedule, loadSchedule } from './storage';
 import { validateSchedule } from './validation';
@@ -23,6 +24,7 @@ interface AddingPass {
 function App() {
   const [selectedClasses, setSelectedClasses] = useState<string[]>(['7A']);
   const [activeView, setActiveView] = useState<string>('schema');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const [schedule, setSchedule] = useState<FullSchedule>(
     () => loadSchedule() || createDefaultSchedule(),
@@ -42,6 +44,10 @@ function App() {
   const updateAndSave = (next: FullSchedule) => {
     setSchedule(next);
     saveSchedule(next);
+  };
+
+  const handleImportSchedule = (imported: FullSchedule) => {
+    updateAndSave(imported);
   };
 
   const handleSavePass = (updated: SchedulePass) => {
@@ -105,13 +111,49 @@ function App() {
 
   return (
     <div className="flex h-screen w-full bg-gray-50 text-gray-800">
-      <Sidebar
-        selectedClasses={selectedClasses}
-        onToggleClass={toggleClass}
-        activeView={activeView}
-        onChangeView={setActiveView}
-      />
-      <main className="flex-1 overflow-auto p-6">
+      {/* Mobile hamburger button */}
+      <button
+        onClick={() => setSidebarOpen(!sidebarOpen)}
+        className="fixed top-3 left-3 z-50 md:hidden bg-white border border-gray-200 rounded-lg p-2 shadow-sm"
+        aria-label="Toggle menu"
+      >
+        <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          {sidebarOpen ? (
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          ) : (
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+          )}
+        </svg>
+      </button>
+
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/25 z-30 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <div className={`
+        fixed inset-y-0 left-0 z-40 transform transition-transform duration-200
+        md:relative md:translate-x-0
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+      `}>
+        <Sidebar
+          selectedClasses={selectedClasses}
+          onToggleClass={toggleClass}
+          activeView={activeView}
+          onChangeView={(view) => {
+            setActiveView(view);
+            setSidebarOpen(false);
+          }}
+          schedule={schedule}
+          onImportSchedule={handleImportSchedule}
+        />
+      </div>
+
+      <main className="flex-1 overflow-auto p-4 md:p-6 pt-14 md:pt-6">
         {activeView === 'schema' &&
           selectedClasses.map(cls => {
             const result = validateSchedule(schedule, cls);
@@ -158,7 +200,7 @@ function App() {
           />
         )}
         {activeView === 'parallell' && (
-          <p className="text-gray-400">Parallellitet kommer i steg 3</p>
+          <ParallelView schedule={schedule} />
         )}
       </main>
 
