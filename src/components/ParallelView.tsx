@@ -13,10 +13,13 @@ const PARALLEL_TYPES = new Set(['lektion', 'bro', 'ph-tid']);
 
 interface ParallelViewProps {
   schedule: FullSchedule;
+  selectedClasses: string[];
+  onClickPass?: (cls: string, dayKey: DayKey, pass: SchedulePass) => void;
 }
 
 interface PassWithParallel extends SchedulePass {
   parallelCount: number;
+  parallelClasses: string[];
 }
 
 function computeParallelism(
@@ -39,28 +42,37 @@ function computeParallelism(
     const passes = schedule[cls]?.[dayKey] || [];
     result[cls] = passes.map((p) => {
       if (!PARALLEL_TYPES.has(p.type)) {
-        return { ...p, parallelCount: 0 };
+        return { ...p, parallelCount: 0, parallelClasses: [] };
       }
-      // Count how many other classes have a pass starting within +-5 min
-      let count = 0;
+      // Find which classes have a pass starting within +-5 min
+      const parallelClasses: string[] = [cls];
       for (const other of allPasses) {
-        if (other.cls === cls && other.pass.id === p.id) continue;
+        if (other.cls === cls) continue;
         if (Math.abs(other.pass.start - p.start) <= 5) {
-          count++;
+          if (!parallelClasses.includes(other.cls)) {
+            parallelClasses.push(other.cls);
+          }
         }
       }
-      // +1 to include self
-      return { ...p, parallelCount: count + 1 };
+      return { ...p, parallelCount: parallelClasses.length, parallelClasses };
     });
   }
   return result;
 }
 
-function ParallelPassBlock({ pass }: { pass: PassWithParallel }) {
+interface ParallelPassBlockProps {
+  pass: PassWithParallel;
+  cls: string;
+  dayKey: DayKey;
+  onClickPass?: (cls: string, dayKey: DayKey, pass: SchedulePass) => void;
+}
+
+function ParallelPassBlock({ pass, cls, dayKey, onClickPass }: ParallelPassBlockProps) {
   const color = getPassColor(pass.type);
   const top = ((pass.start - START_MIN) / TOTAL_MIN) * TOTAL_HEIGHT;
   const height = (pass.duration / TOTAL_MIN) * TOTAL_HEIGHT;
   const showTime = height >= 32;
+  const isCompact = height <= 40;
 
   const isHighParallel = pass.parallelCount >= 4;
   const isMediumParallel = pass.parallelCount >= 2 && pass.parallelCount < 4;
@@ -68,7 +80,13 @@ function ParallelPassBlock({ pass }: { pass: PassWithParallel }) {
   const bgColor = isHighParallel ? '#FEE2E2' : `${color}18`;
   const borderColor = isHighParallel ? '#EF4444' : color;
 
-  const [showTooltip, setShowTooltip] = useState(false);
+  const tooltipText = pass.parallelCount >= 2
+    ? `${pass.label} ${minutesToTime(pass.start)}\u2013${minutesToTime(pass.start + pass.duration)}\n${pass.parallelCount} klasser parallella: ${pass.parallelClasses.join(', ')}`
+    : `${pass.label} ${minutesToTime(pass.start)}\u2013${minutesToTime(pass.start + pass.duration)}`;
+
+  const badgeText = pass.parallelCount >= 2
+    ? (isCompact ? `${pass.parallelCount}\u2225` : `${pass.parallelCount} parallella`)
+    : null;
 
   return (
     <div
@@ -79,8 +97,8 @@ function ParallelPassBlock({ pass }: { pass: PassWithParallel }) {
         backgroundColor: bgColor,
         borderLeft: `3px solid ${borderColor}`,
       }}
-      onMouseEnter={() => setShowTooltip(true)}
-      onMouseLeave={() => setShowTooltip(false)}
+      title={tooltipText}
+      onClick={() => onClickPass?.(cls, dayKey, pass)}
     >
       <div className="px-1.5 py-0.5 relative">
         <p
@@ -91,11 +109,11 @@ function ParallelPassBlock({ pass }: { pass: PassWithParallel }) {
         </p>
         {showTime && (
           <p className="text-[9px] text-gray-500">
-            {minutesToTime(pass.start)}–{minutesToTime(pass.start + pass.duration)}
+            {minutesToTime(pass.start)}&ndash;{minutesToTime(pass.start + pass.duration)}
           </p>
         )}
         {/* Parallelism badge */}
-        {pass.parallelCount >= 2 && (
+        {badgeText && (
           <span
             className="absolute top-0.5 right-0.5 text-[9px] font-bold px-1 py-0.5 rounded-full leading-none"
             style={{
@@ -104,23 +122,15 @@ function ParallelPassBlock({ pass }: { pass: PassWithParallel }) {
               border: `1px solid ${isHighParallel ? '#EF4444' : '#2563EB'}`,
             }}
           >
-            {pass.parallelCount}st
+            {badgeText}
           </span>
         )}
       </div>
-      {/* Tooltip */}
-      {showTooltip && (
-        <div className="absolute z-50 left-full ml-2 top-0 bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg pointer-events-none">
-          <p className="font-bold">{pass.label}</p>
-          <p>{minutesToTime(pass.start)}–{minutesToTime(pass.start + pass.duration)}</p>
-          <p>{pass.parallelCount} klass{pass.parallelCount !== 1 ? 'er' : ''} parallellt</p>
-        </div>
-      )}
     </div>
   );
 }
 
-export default function ParallelView({ schedule }: ParallelViewProps) {
+export default function ParallelView({ schedule, selectedClasses, onClickPass }: ParallelViewProps) {
   const [selectedDay, setSelectedDay] = useState<DayKey>('mon');
 
   const parallelData = computeParallelism(schedule, selectedDay);
@@ -170,41 +180,61 @@ export default function ParallelView({ schedule }: ParallelViewProps) {
           </div>
 
           {/* Class columns */}
-          {CLASSES.map((cls, idx) => (
-            <div
-              key={cls}
-              className="flex-1 min-w-[100px]"
-              style={{ borderRight: idx < CLASSES.length - 1 ? '1px solid #E2E8F0' : 'none' }}
-            >
-              {/* Header */}
+          {CLASSES.map((cls, idx) => {
+            const isSelected = selectedClasses.includes(cls);
+            return (
               <div
-                className="h-10 flex items-center justify-center border-b"
-                style={{ borderColor: '#E2E8F0', backgroundColor: '#F8FAFC' }}
+                key={cls}
+                className="flex-1 min-w-[100px]"
+                style={{
+                  borderRight: idx < CLASSES.length - 1 ? '1px solid #E2E8F0' : 'none',
+                  opacity: isSelected ? 1 : 0.5,
+                }}
               >
-                <span className="text-sm font-semibold text-gray-700">Åk {cls}</span>
-              </div>
+                {/* Header */}
+                <div
+                  className="h-10 flex items-center justify-center border-b"
+                  style={{
+                    borderColor: '#E2E8F0',
+                    backgroundColor: isSelected ? '#DBEAFE' : '#F1F5F9',
+                  }}
+                >
+                  <span
+                    className="text-sm font-semibold"
+                    style={{ color: isSelected ? '#1D4ED8' : '#94A3B8' }}
+                  >
+                    Åk {cls}
+                  </span>
+                </div>
 
-              {/* Body */}
-              <div className="relative" style={{ height: `${TOTAL_HEIGHT}px` }}>
-                {/* Grid lines */}
-                {hours.map((h) => {
-                  const top = (h - START_HOUR) * HOUR_HEIGHT;
-                  return (
-                    <div
-                      key={h}
-                      className="absolute left-0 right-0"
-                      style={{ top: `${top}px`, borderTop: '1px solid #F1F5F9' }}
+                {/* Body */}
+                <div className="relative" style={{ height: `${TOTAL_HEIGHT}px` }}>
+                  {/* Grid lines */}
+                  {hours.map((h) => {
+                    const top = (h - START_HOUR) * HOUR_HEIGHT;
+                    return (
+                      <div
+                        key={h}
+                        className="absolute left-0 right-0"
+                        style={{ top: `${top}px`, borderTop: '1px solid #F1F5F9' }}
+                      />
+                    );
+                  })}
+
+                  {/* Passes */}
+                  {parallelData[cls]?.map((pass) => (
+                    <ParallelPassBlock
+                      key={pass.id}
+                      pass={pass}
+                      cls={cls}
+                      dayKey={selectedDay}
+                      onClickPass={onClickPass}
                     />
-                  );
-                })}
-
-                {/* Passes */}
-                {parallelData[cls]?.map((pass) => (
-                  <ParallelPassBlock key={pass.id} pass={pass} />
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>
