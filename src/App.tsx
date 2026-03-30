@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Sidebar from './components/Sidebar';
 import ScheduleGrid from './components/ScheduleGrid';
 import PassModal from './components/PassModal';
@@ -6,8 +6,10 @@ import AddPassModal from './components/AddPassModal';
 import StatisticsView from './components/StatisticsView';
 import ParallelView from './components/ParallelView';
 import { createDefaultSchedule } from './data/defaultSchedule';
-import { saveSchedule, loadSchedule } from './storage';
+import { saveSchedule, loadSchedule, saveVariants, loadVariants } from './storage';
+import type { ScheduleVariant, VariantStore } from './storage';
 import { validateSchedule } from './validation';
+import { useScheduleHistory } from './hooks/useScheduleHistory';
 import type { DayKey, FullSchedule, SchedulePass } from './types';
 
 interface EditingPass {
@@ -21,17 +23,45 @@ interface AddingPass {
   dayKey: DayKey;
 }
 
+function initVariantStore(): VariantStore {
+  const existing = loadVariants();
+  if (existing && existing.variants.length > 0) return existing;
+
+  const schedule = loadSchedule() || createDefaultSchedule();
+  const now = new Date().toISOString();
+  const variant: ScheduleVariant = {
+    id: crypto.randomUUID(),
+    name: 'v11 original',
+    schedule,
+    createdAt: now,
+    updatedAt: now,
+  };
+  const store: VariantStore = {
+    activeVariantId: variant.id,
+    variants: [variant],
+  };
+  saveVariants(store);
+  saveSchedule(schedule);
+  return store;
+}
+
 function App() {
   const [selectedClasses, setSelectedClasses] = useState<string[]>(['7A']);
   const [activeView, setActiveView] = useState<string>('schema');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  const [variantStore, setVariantStore] = useState<VariantStore>(initVariantStore);
+
+  const activeVariant = variantStore.variants.find(v => v.id === variantStore.activeVariantId)!;
+
   const [schedule, setSchedule] = useState<FullSchedule>(
-    () => loadSchedule() || createDefaultSchedule(),
+    () => activeVariant.schedule,
   );
 
   const [editingPass, setEditingPass] = useState<EditingPass | null>(null);
   const [addingPass, setAddingPass] = useState<AddingPass | null>(null);
+
+  const { pushState, undo, undoCount, clearHistory } = useScheduleHistory();
 
   const toggleClass = (cls: string) => {
     setSelectedClasses(prev =>
@@ -41,10 +71,31 @@ function App() {
 
   /* ── Schedule mutation helpers ──────────────────────────────── */
 
-  const updateAndSave = (next: FullSchedule) => {
-    setSchedule(next);
+  const updateAndSave = useCallback((next: FullSchedule, skipHistory = false) => {
+    if (!skipHistory) {
+      setSchedule(prev => {
+        pushState(prev);
+        return next;
+      });
+    } else {
+      setSchedule(next);
+    }
     saveSchedule(next);
-  };
+
+    // Auto-save to active variant
+    setVariantStore(prev => {
+      const updated: VariantStore = {
+        ...prev,
+        variants: prev.variants.map(v =>
+          v.id === prev.activeVariantId
+            ? { ...v, schedule: next, updatedAt: new Date().toISOString() }
+            : v,
+        ),
+      };
+      saveVariants(updated);
+      return updated;
+    });
+  }, [pushState]);
 
   const handleImportSchedule = (imported: FullSchedule) => {
     updateAndSave(imported);
@@ -96,6 +147,129 @@ function App() {
     };
     updateAndSave(next);
     setAddingPass(null);
+  };
+
+  /* ── Undo handler ──────────────────────────────────────────── */
+
+  const handleUndo = useCallback(() => {
+    const prev = undo();
+    if (prev) {
+      updateAndSave(prev, true);
+    }
+  }, [undo, updateAndSave]);
+
+  // Listen for Ctrl+Z custom event from useScheduleHistory
+  useEffect(() => {
+    const handler = () => handleUndo();
+    window.addEventListener('schedule-undo', handler);
+    return () => window.removeEventListener('schedule-undo', handler);
+  }, [handleUndo]);
+
+  /* ── Variant handlers ──────────────────────────────────────── */
+
+  const handleSaveAsNewVariant = () => {
+    if (variantStore.variants.length >= 10) {
+      alert('Max 10 varianter. Ta bort en variant innan du sparar en ny.');
+      return;
+    }
+    const name = window.prompt('Namn på ny variant:', '');
+    if (!name) return;
+
+    const now = new Date().toISOString();
+    const newVariant: ScheduleVariant = {
+      id: crypto.randomUUID(),
+      name,
+      schedule: structuredClone(schedule),
+      createdAt: now,
+      updatedAt: now,
+    };
+    const updated: VariantStore = {
+      activeVariantId: newVariant.id,
+      variants: [...variantStore.variants, newVariant],
+    };
+    setVariantStore(updated);
+    saveVariants(updated);
+    clearHistory();
+  };
+
+  const handleResetV11 = () => {
+    if (!confirm('Vill du verkligen aterstalla till v11 default-schemat?')) return;
+
+    const defaultSched = createDefaultSchedule();
+    const now = new Date().toISOString();
+    const newVariant: ScheduleVariant = {
+      id: crypto.randomUUID(),
+      name: 'v11 original (aterstallд)',
+      schedule: defaultSched,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    let variants = [...variantStore.variants, newVariant];
+    if (variants.length > 10) {
+      variants = variants.slice(variants.length - 10);
+    }
+
+    const updated: VariantStore = {
+      activeVariantId: newVariant.id,
+      variants,
+    };
+    setVariantStore(updated);
+    saveVariants(updated);
+    setSchedule(defaultSched);
+    saveSchedule(defaultSched);
+    clearHistory();
+  };
+
+  const handleLoadVariant = (variantId: string) => {
+    if (variantId === variantStore.activeVariantId) return;
+    if (!confirm('Vill du byta till denna variant? Undo-historiken rensas.')) return;
+
+    const variant = variantStore.variants.find(v => v.id === variantId);
+    if (!variant) return;
+
+    const updated: VariantStore = {
+      ...variantStore,
+      activeVariantId: variantId,
+    };
+    setVariantStore(updated);
+    saveVariants(updated);
+    setSchedule(variant.schedule);
+    saveSchedule(variant.schedule);
+    clearHistory();
+  };
+
+  const handleDeleteVariant = (variantId: string) => {
+    if (variantStore.variants.length <= 1) return;
+    if (!confirm('Vill du ta bort denna variant?')) return;
+
+    const remaining = variantStore.variants.filter(v => v.id !== variantId);
+    let activeId = variantStore.activeVariantId;
+
+    if (activeId === variantId) {
+      activeId = remaining[0].id;
+      setSchedule(remaining[0].schedule);
+      saveSchedule(remaining[0].schedule);
+      clearHistory();
+    }
+
+    const updated: VariantStore = {
+      activeVariantId: activeId,
+      variants: remaining,
+    };
+    setVariantStore(updated);
+    saveVariants(updated);
+  };
+
+  const handleRenameVariant = (variantId: string, newName: string) => {
+    const updated: VariantStore = {
+      ...variantStore,
+      variants: variantStore.variants.map(v =>
+        v.id === variantId ? { ...v, name: newName, updatedAt: new Date().toISOString() } : v,
+      ),
+    };
+    setVariantStore(updated);
+    saveVariants(updated);
   };
 
   /* ── Find which day a pass belongs to ──────────────────────── */
@@ -150,6 +324,14 @@ function App() {
           }}
           schedule={schedule}
           onImportSchedule={handleImportSchedule}
+          undoCount={undoCount}
+          onUndo={handleUndo}
+          variantStore={variantStore}
+          onSaveAsNewVariant={handleSaveAsNewVariant}
+          onResetV11={handleResetV11}
+          onLoadVariant={handleLoadVariant}
+          onDeleteVariant={handleDeleteVariant}
+          onRenameVariant={handleRenameVariant}
         />
       </div>
 
@@ -205,6 +387,9 @@ function App() {
             selectedClasses={selectedClasses}
             onClickPass={(cls, dayKey, pass) => {
               setEditingPass({ cls, dayKey, pass });
+            }}
+            onClickSlot={(cls, dayKey) => {
+              setAddingPass({ cls, dayKey });
             }}
           />
         )}

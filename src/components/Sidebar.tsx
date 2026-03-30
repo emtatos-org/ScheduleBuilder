@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { CLASSES } from '../constants';
 import type { FullSchedule } from '../types';
+import type { VariantStore } from '../storage';
 
 interface SidebarProps {
   selectedClasses: string[];
@@ -9,6 +10,14 @@ interface SidebarProps {
   onChangeView: (view: string) => void;
   schedule: FullSchedule;
   onImportSchedule: (schedule: FullSchedule) => void;
+  undoCount: number;
+  onUndo: () => void;
+  variantStore: VariantStore;
+  onSaveAsNewVariant: () => void;
+  onResetV11: () => void;
+  onLoadVariant: (id: string) => void;
+  onDeleteVariant: (id: string) => void;
+  onRenameVariant: (id: string, name: string) => void;
 }
 
 const VIEWS = [
@@ -35,9 +44,19 @@ export default function Sidebar({
   onChangeView,
   schedule,
   onImportSchedule,
+  undoCount,
+  onUndo,
+  variantStore,
+  onSaveAsNewVariant,
+  onResetV11,
+  onLoadVariant,
+  onDeleteVariant,
+  onRenameVariant,
 }: SidebarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importError, setImportError] = useState<string | null>(null);
+  const [editingVariantId, setEditingVariantId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState('');
 
   const handleSaveJSON = () => {
     const blob = new Blob([JSON.stringify(schedule, null, 2)], { type: 'application/json' });
@@ -118,6 +137,130 @@ export default function Sidebar({
         <p className="text-xs text-gray-400 mt-1">
           {'v11 · Åk 4–9 · Lgr22'}
         </p>
+      </div>
+
+      {/* ── SCHEMAN section ──────────────────────────────────── */}
+      <div className="mb-6">
+        <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+          Scheman
+        </h2>
+
+        {/* Active variant name (inline editable) */}
+        {(() => {
+          const active = variantStore.variants.find(v => v.id === variantStore.activeVariantId);
+          if (!active) return null;
+          return editingVariantId === active.id ? (
+            <input
+              autoFocus
+              className="w-full text-sm font-medium text-gray-800 bg-white border border-blue-400 rounded px-2 py-1 mb-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={editingName}
+              onChange={(e) => setEditingName(e.target.value)}
+              onBlur={() => {
+                if (editingName.trim()) onRenameVariant(active.id, editingName.trim());
+                setEditingVariantId(null);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  if (editingName.trim()) onRenameVariant(active.id, editingName.trim());
+                  setEditingVariantId(null);
+                } else if (e.key === 'Escape') {
+                  setEditingVariantId(null);
+                }
+              }}
+            />
+          ) : (
+            <p
+              className="text-sm font-medium text-gray-800 cursor-pointer hover:text-blue-600 mb-2 truncate"
+              title="Klicka for att byta namn"
+              onClick={() => {
+                setEditingVariantId(active.id);
+                setEditingName(active.name);
+              }}
+            >
+              {active.name}
+            </p>
+          );
+        })()}
+
+        {/* Variant action buttons */}
+        <div className="flex gap-2 mb-2">
+          <button
+            onClick={onSaveAsNewVariant}
+            className="flex-1 px-2 py-1.5 rounded text-xs font-medium border border-green-400 text-green-700 hover:bg-green-50 transition-colors"
+          >
+            Spara som ny
+          </button>
+          <button
+            onClick={onResetV11}
+            className="flex-1 px-2 py-1.5 rounded text-xs font-medium border border-gray-300 text-gray-600 hover:bg-gray-50 transition-colors"
+          >
+            Aterstall v11
+          </button>
+        </div>
+
+        {/* Variant list (if more than 1) */}
+        {variantStore.variants.length > 1 && (
+          <div className="max-h-[160px] overflow-y-auto space-y-1">
+            {variantStore.variants.map(v => {
+              const isActive = v.id === variantStore.activeVariantId;
+              return (
+                <div
+                  key={v.id}
+                  className="flex items-center gap-1 px-2 py-1 rounded text-xs"
+                  style={{
+                    borderLeft: isActive ? '3px solid #2563EB' : '3px solid transparent',
+                    backgroundColor: isActive ? '#EFF6FF' : 'transparent',
+                    maxHeight: '36px',
+                  }}
+                >
+                  <span className="flex-1 truncate font-medium text-gray-700" title={v.name}>
+                    {v.name}
+                  </span>
+                  <span className="text-[10px] text-gray-400 shrink-0">
+                    {new Date(v.updatedAt).toLocaleDateString('sv-SE')}
+                  </span>
+                  {!isActive && (
+                    <button
+                      onClick={() => onLoadVariant(v.id)}
+                      className="text-[10px] text-blue-600 hover:text-blue-800 font-medium shrink-0"
+                    >
+                      Ladda
+                    </button>
+                  )}
+                  {variantStore.variants.length > 1 && !isActive && (
+                    <button
+                      onClick={() => onDeleteVariant(v.id)}
+                      className="text-[10px] text-red-500 hover:text-red-700 shrink-0"
+                    >
+                      Ta bort
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* ── Undo button ──────────────────────────────────────── */}
+      <div className="mb-6">
+        <button
+          onClick={onUndo}
+          disabled={undoCount === 0}
+          className={`flex items-center gap-2 w-full px-3 py-2 rounded text-sm font-medium transition-colors text-left ${
+            undoCount > 0
+              ? 'bg-yellow-50 text-yellow-800 hover:bg-yellow-100 border border-yellow-300'
+              : 'bg-gray-50 text-gray-400 border border-gray-200 cursor-not-allowed'
+          }`}
+          title="Ctrl+Z / Cmd+Z"
+        >
+          <span>{'\u21A9'} Angra</span>
+          {undoCount > 0 && (
+            <span className="text-xs bg-yellow-200 text-yellow-800 px-1.5 py-0.5 rounded-full">
+              ({undoCount})
+            </span>
+          )}
+        </button>
       </div>
 
       <div className="mb-6">
