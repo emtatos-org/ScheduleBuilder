@@ -71,9 +71,9 @@ export default function Sidebar({
   };
 
   const handleExportCSV = () => {
-    const headers = ['Klass', 'Dag', 'Typ', 'Start', 'Slut', 'L\u00e4ngd (min)', 'Etikett', 'Garanterad'];
+    const headers = ['Klass', 'Dag', 'Typ', 'Start', 'Slut', 'Längd (min)', 'Etikett', 'Garanterad'];
     const dayLabels: Record<string, string> = {
-      mon: 'M\u00e5ndag', tue: 'Tisdag', wed: 'Onsdag', thu: 'Torsdag', fri: 'Fredag',
+      mon: 'Måndag', tue: 'Tisdag', wed: 'Onsdag', thu: 'Torsdag', fri: 'Fredag',
     };
     const rows: string[][] = [];
 
@@ -116,7 +116,7 @@ export default function Sidebar({
           {'\u{1F4C5}'} Schemabyggare
         </h1>
         <p className="text-xs text-gray-400 mt-1">
-          v11 · \u00c5k 4\u20139 · Lgr22
+          {'v11 · Åk 4–9 · Lgr22'}
         </p>
       </div>
 
