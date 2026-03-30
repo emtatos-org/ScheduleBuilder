@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { DEFAULT_LGR22_TARGETS } from './constants';
 import Sidebar from './components/Sidebar';
 import ScheduleGrid from './components/ScheduleGrid';
@@ -7,7 +7,7 @@ import AddPassModal from './components/AddPassModal';
 import StatisticsView from './components/StatisticsView';
 import ParallelView from './components/ParallelView';
 import { createDefaultSchedule } from './data/defaultSchedule';
-import { saveSchedule, loadSchedule, saveVariants, loadVariants } from './storage';
+import { loadSchedule, saveVariants, loadVariants } from './storage';
 import type { ScheduleVariant, VariantStore } from './storage';
 import { validateSchedule } from './validation';
 import { useScheduleHistory } from './hooks/useScheduleHistory';
@@ -28,12 +28,12 @@ function initVariantStore(): VariantStore {
   const existing = loadVariants();
   if (existing && existing.variants.length > 0) return existing;
 
-  const schedule = loadSchedule() || createDefaultSchedule();
+  const sched = loadSchedule() || createDefaultSchedule();
   const now = new Date().toISOString();
   const variant: ScheduleVariant = {
     id: crypto.randomUUID(),
     name: 'v11 original',
-    schedule,
+    schedule: sched,
     createdAt: now,
     updatedAt: now,
   };
@@ -42,8 +42,12 @@ function initVariantStore(): VariantStore {
     variants: [variant],
   };
   saveVariants(store);
-  saveSchedule(schedule);
   return store;
+}
+
+function getInitialSchedule(variantStore: VariantStore): FullSchedule {
+  const active = variantStore.variants.find(v => v.id === variantStore.activeVariantId);
+  return active ? active.schedule : createDefaultSchedule();
 }
 
 function App() {
@@ -53,9 +57,8 @@ function App() {
 
   const [variantStore, setVariantStore] = useState<VariantStore>(initVariantStore);
 
-  const activeVariant = variantStore.variants.find(v => v.id === variantStore.activeVariantId)!;
-
-  const { schedule, updateSchedule, undo, setScheduleDirectly, undoCount, clearHistory } = useScheduleHistory(activeVariant.schedule);
+  const { schedule, updateSchedule, setScheduleDirect, undo, undoCount, clearHistory } =
+    useScheduleHistory(getInitialSchedule(variantStore));
 
   const [editingPass, setEditingPass] = useState<EditingPass | null>(null);
   const [addingPass, setAddingPass] = useState<AddingPass | null>(null);
@@ -157,19 +160,6 @@ function App() {
     setAddingPass(null);
   };
 
-  /* ── Undo handler ──────────────────────────────────────────── */
-
-  const handleUndo = useCallback(() => {
-    undo();
-  }, [undo]);
-
-  // Listen for Ctrl+Z custom event from useScheduleHistory
-  useEffect(() => {
-    const handler = () => handleUndo();
-    window.addEventListener('schedule-undo', handler);
-    return () => window.removeEventListener('schedule-undo', handler);
-  }, [handleUndo]);
-
   /* ── Variant handlers ──────────────────────────────────────── */
 
   const handleSaveAsNewVariant = () => {
@@ -184,7 +174,7 @@ function App() {
     const newVariant: ScheduleVariant = {
       id: crypto.randomUUID(),
       name,
-      schedule: structuredClone(schedule),
+      schedule: JSON.parse(JSON.stringify(schedule)),
       createdAt: now,
       updatedAt: now,
     };
@@ -221,7 +211,7 @@ function App() {
     };
     setVariantStore(updated);
     saveVariants(updated);
-    setScheduleDirectly(defaultSched);
+    setScheduleDirect(defaultSched);
     clearHistory();
   };
 
@@ -238,7 +228,7 @@ function App() {
     };
     setVariantStore(updated);
     saveVariants(updated);
-    setScheduleDirectly(variant.schedule);
+    setScheduleDirect(variant.schedule);
     clearHistory();
   };
 
@@ -251,7 +241,7 @@ function App() {
 
     if (activeId === variantId) {
       activeId = remaining[0].id;
-      setScheduleDirectly(remaining[0].schedule);
+      setScheduleDirect(remaining[0].schedule);
       clearHistory();
     }
 
@@ -327,7 +317,7 @@ function App() {
           schedule={schedule}
           onImportSchedule={handleImportSchedule}
           undoCount={undoCount}
-          onUndo={handleUndo}
+          onUndo={undo}
           variantStore={variantStore}
           onSaveAsNewVariant={handleSaveAsNewVariant}
           onResetV11={handleResetV11}
