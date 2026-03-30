@@ -1,4 +1,4 @@
-import type { PassTypeConfig, DayKey } from './types';
+import type { PassTypeConfig, DayKey, GradeTargets } from './types';
 
 export const DAYS: { key: DayKey; label: string }[] = [
   { key: 'mon', label: 'Måndag' },
@@ -26,6 +26,10 @@ export const END_HOUR = 16;
 export const TOTAL_MINUTES = (END_HOUR - START_HOUR) * 60;
 
 export const LGR22_TARGETS: Record<number, number> = {
+  4: 1200, 5: 1200, 6: 1285, 7: 1383, 8: 1383, 9: 1383,
+};
+
+export const DEFAULT_LGR22_TARGETS: GradeTargets = {
   4: 1200, 5: 1200, 6: 1285, 7: 1383, 8: 1383, 9: 1383,
 };
 

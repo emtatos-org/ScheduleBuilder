@@ -1,11 +1,12 @@
-import type { FullSchedule } from '../types';
+import type { FullSchedule, GradeTargets } from '../types';
 import { validateSchedule } from '../validation';
-import { LGR22_TARGETS, DAYS } from '../constants';
+import { DAYS } from '../constants';
 import { getGrade, minutesToTime } from '../utils';
 
 interface StatisticsViewProps {
   schedule: FullSchedule;
   selectedClasses: string[];
+  targets: GradeTargets;
 }
 
 /* PDF-referensvärden per årskurs (lärartid h/v) */
@@ -26,17 +27,20 @@ function StatCard({
   value,
   unit,
   color,
+  subText,
 }: {
   title: string;
   value: string;
   unit: string;
   color: string;
+  subText?: string;
 }) {
   return (
     <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
       <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">{title}</p>
       <p className="text-2xl font-bold mt-1" style={{ color }}>{value}</p>
       <p className="text-xs text-gray-400">{unit}</p>
+      {subText && <p className="text-xs text-gray-500 mt-1">{subText}</p>}
     </div>
   );
 }
@@ -65,13 +69,13 @@ function deviationColor(diff: number): string {
   return '#16A34A';                  // green – OK
 }
 
-export default function StatisticsView({ schedule, selectedClasses }: StatisticsViewProps) {
+export default function StatisticsView({ schedule, selectedClasses, targets }: StatisticsViewProps) {
   return (
     <div className="space-y-8">
       {selectedClasses.map((cls) => {
         const grade = getGrade(cls);
-        const target = LGR22_TARGETS[grade] || 0;
-        const result = validateSchedule(schedule, cls);
+        const target = targets[grade] || 0;
+        const result = validateSchedule(schedule, cls, targets);
         const diff = result.weeklyGuaranteed - target;
         const teacherH = (result.weeklyTeacher / 60).toFixed(1);
         const phMin = result.weeklyPh;
@@ -103,12 +107,14 @@ export default function StatisticsView({ schedule, selectedClasses }: Statistics
                 value={`${result.weeklyGuaranteed}`}
                 unit="min"
                 color={deviationColor(diff)}
+                subText={`M\u00e5l: ${target} min`}
               />
               <StatCard
                 title="Avvikelse mot mål"
                 value={`${diff >= 0 ? '+' : ''}${diff}`}
                 unit={`min (mål ${target})`}
                 color={deviationColor(diff)}
+                subText={`M\u00e5l: ${target} min`}
               />
               <StatCard
                 title="Lärartid/v"

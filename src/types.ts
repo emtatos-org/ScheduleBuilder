@@ -22,3 +22,5 @@ export interface PassTypeConfig {
   label: string;
   color: string;  // tailwind-kompatibel hex
 }
+
+export type GradeTargets = Record<number, number>; // grade → min/vecka

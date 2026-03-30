@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { DEFAULT_LGR22_TARGETS } from './constants';
 import Sidebar from './components/Sidebar';
 import ScheduleGrid from './components/ScheduleGrid';
 import PassModal from './components/PassModal';
@@ -10,7 +11,7 @@ import { saveSchedule, loadSchedule, saveVariants, loadVariants } from './storag
 import type { ScheduleVariant, VariantStore } from './storage';
 import { validateSchedule } from './validation';
 import { useScheduleHistory } from './hooks/useScheduleHistory';
-import type { DayKey, FullSchedule, SchedulePass } from './types';
+import type { DayKey, FullSchedule, SchedulePass, GradeTargets } from './types';
 
 interface EditingPass {
   cls: string;
@@ -60,6 +61,24 @@ function App() {
 
   const [editingPass, setEditingPass] = useState<EditingPass | null>(null);
   const [addingPass, setAddingPass] = useState<AddingPass | null>(null);
+
+  const [targets, setTargets] = useState<GradeTargets>(() => {
+    const saved = localStorage.getItem('schedulebuilder-targets');
+    if (saved) try { return JSON.parse(saved); } catch { /* ignore */ }
+    return { ...DEFAULT_LGR22_TARGETS };
+  });
+
+  useEffect(() => {
+    localStorage.setItem('schedulebuilder-targets', JSON.stringify(targets));
+  }, [targets]);
+
+  const handleUpdateTarget = (grade: number, value: number) => {
+    setTargets(prev => ({ ...prev, [grade]: value }));
+  };
+
+  const handleResetTargets = () => {
+    setTargets({ ...DEFAULT_LGR22_TARGETS });
+  };
 
   const { pushState, undo, undoCount, clearHistory } = useScheduleHistory();
 
@@ -332,13 +351,16 @@ function App() {
           onLoadVariant={handleLoadVariant}
           onDeleteVariant={handleDeleteVariant}
           onRenameVariant={handleRenameVariant}
+          targets={targets}
+          onUpdateTarget={handleUpdateTarget}
+          onResetTargets={handleResetTargets}
         />
       </div>
 
       <main className="flex-1 overflow-auto p-4 md:p-6 pt-14 md:pt-6">
         {activeView === 'schema' &&
           selectedClasses.map(cls => {
-            const result = validateSchedule(schedule, cls);
+            const result = validateSchedule(schedule, cls, targets);
             return (
               <div key={cls}>
                 {/* Validation warnings */}
@@ -379,6 +401,7 @@ function App() {
           <StatisticsView
             schedule={schedule}
             selectedClasses={selectedClasses}
+            targets={targets}
           />
         )}
         {activeView === 'parallell' && (
