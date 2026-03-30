@@ -200,7 +200,13 @@ function App() {
           />
         )}
         {activeView === 'parallell' && (
-          <ParallelView schedule={schedule} />
+          <ParallelView
+            schedule={schedule}
+            selectedClasses={selectedClasses}
+            onClickPass={(cls, dayKey, pass) => {
+              setEditingPass({ cls, dayKey, pass });
+            }}
+          />
         )}
       </main>
 
