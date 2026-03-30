@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { DAYS, CLASSES, START_HOUR, END_HOUR } from '../constants';
 import type { FullSchedule, DayKey, SchedulePass } from '../types';
 import { minutesToTime, getPassColor } from '../utils';
@@ -15,6 +15,7 @@ interface ParallelViewProps {
   schedule: FullSchedule;
   selectedClasses: string[];
   onClickPass?: (cls: string, dayKey: DayKey, pass: SchedulePass) => void;
+  onClickSlot?: (cls: string, dayKey: DayKey) => void;
 }
 
 interface PassWithParallel extends SchedulePass {
@@ -98,7 +99,7 @@ function ParallelPassBlock({ pass, cls, dayKey, onClickPass }: ParallelPassBlock
         borderLeft: `3px solid ${borderColor}`,
       }}
       title={tooltipText}
-      onClick={() => onClickPass?.(cls, dayKey, pass)}
+      onClick={(e) => { e.stopPropagation(); onClickPass?.(cls, dayKey, pass); }}
     >
       <div className="px-1.5 py-0.5 relative">
         <p
@@ -130,10 +131,13 @@ function ParallelPassBlock({ pass, cls, dayKey, onClickPass }: ParallelPassBlock
   );
 }
 
-export default function ParallelView({ schedule, selectedClasses, onClickPass }: ParallelViewProps) {
+export default function ParallelView({ schedule, selectedClasses, onClickPass, onClickSlot }: ParallelViewProps) {
   const [selectedDay, setSelectedDay] = useState<DayKey>('mon');
 
-  const parallelData = computeParallelism(schedule, selectedDay);
+  const parallelData = useMemo(
+    () => computeParallelism(schedule, selectedDay),
+    [schedule, selectedDay],
+  );
   const hours = Array.from({ length: TOTAL_HOURS + 1 }, (_, i) => START_HOUR + i);
 
   return (
@@ -208,7 +212,11 @@ export default function ParallelView({ schedule, selectedClasses, onClickPass }:
                 </div>
 
                 {/* Body */}
-                <div className="relative" style={{ height: `${TOTAL_HEIGHT}px` }}>
+                <div
+                  className="relative cursor-pointer"
+                  style={{ height: `${TOTAL_HEIGHT}px` }}
+                  onClick={() => onClickSlot?.(cls, selectedDay)}
+                >
                   {/* Grid lines */}
                   {hours.map((h) => {
                     const top = (h - START_HOUR) * HOUR_HEIGHT;
