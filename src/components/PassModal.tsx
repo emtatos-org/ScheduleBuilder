@@ -48,8 +48,8 @@ export default function PassModal({ pass, onSave, onDelete, onClose }: PassModal
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4">
+      <div className="absolute inset-0" style={{ backgroundColor: 'rgba(0,0,0,0.25)' }} onClick={onClose} />
+      <div className="relative bg-white p-6 w-full max-w-md mx-4" style={{ borderRadius: '16px', boxShadow: '0 20px 60px rgba(0,0,0,0.12)' }}>
         <h3 className="text-lg font-bold text-gray-800 mb-4">Redigera pass</h3>
 
         {/* Typ */}

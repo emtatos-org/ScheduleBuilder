@@ -33,16 +33,16 @@ function PassBlock({
         e.stopPropagation();
         onClick();
       }}
-      className="absolute left-1 right-1 rounded cursor-pointer transition-all hover:scale-[1.02] hover:shadow-md overflow-hidden"
+      className="absolute left-1 right-1 rounded-[6px] cursor-pointer transition-all hover:scale-[1.02] hover:shadow-md overflow-hidden"
       style={{
         top: `${top}px`,
         height: `${height}px`,
-        backgroundColor: `${color}1A`,
+        backgroundColor: `${color}18`,
         borderLeft: `3px solid ${color}`,
       }}
     >
       <div className="px-2 py-1">
-        <p className="text-xs font-medium text-gray-800 truncate">
+        <p className="text-xs font-bold truncate" style={{ color }}>
           {pass.label}
         </p>
         {showTime && (
@@ -69,17 +69,17 @@ export default function ScheduleGrid({
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         <div className="flex">
           {/* Tidsaxel */}
-          <div className="w-14 shrink-0 border-r border-gray-100">
+          <div className="w-[52px] shrink-0 border-r" style={{ borderColor: '#E2E8F0' }}>
             {/* Header spacer */}
-            <div className="h-10 border-b border-gray-200" />
+            <div className="h-10 border-b" style={{ borderColor: '#E2E8F0', backgroundColor: '#F8FAFC' }} />
             <div className="relative" style={{ height: `${TOTAL_HEIGHT}px` }}>
               {hours.map((h) => {
                 const top = (h - START_HOUR) * HOUR_HEIGHT;
                 return (
                   <span
                     key={h}
-                    className="absolute right-2 text-[11px] text-gray-400 -translate-y-1/2"
-                    style={{ top: `${top}px` }}
+                    className="absolute right-2 text-[11px] -translate-y-1/2"
+                    style={{ color: '#94A3B8', top: `${top}px` }}
                   >
                     {String(h).padStart(2, '0')}:00
                   </span>
@@ -92,10 +92,11 @@ export default function ScheduleGrid({
           {DAYS.map((day, idx) => (
             <div
               key={day.key}
-              className={`flex-1 ${idx < DAYS.length - 1 ? 'border-r border-gray-100' : ''}`}
+              className="flex-1"
+              style={{ borderRight: idx < DAYS.length - 1 ? '1px solid #E2E8F0' : 'none' }}
             >
               {/* Dag-header */}
-              <div className="h-10 flex items-center justify-center border-b border-gray-200">
+              <div className="h-10 flex items-center justify-center border-b" style={{ borderColor: '#E2E8F0', backgroundColor: '#F8FAFC' }}>
                 <span className="text-sm font-semibold text-gray-700">
                   {day.label}
                 </span>
@@ -113,8 +114,8 @@ export default function ScheduleGrid({
                   return (
                     <div
                       key={h}
-                      className="absolute left-0 right-0 border-t border-gray-100"
-                      style={{ top: `${top}px` }}
+                      className="absolute left-0 right-0"
+                      style={{ borderTop: '1px solid #F1F5F9', top: `${top}px` }}
                     />
                   );
                 })}
