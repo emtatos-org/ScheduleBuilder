@@ -385,6 +385,19 @@ export default function Sidebar({
           className="hidden"
         />
       </div>
+
+      {/* Credit footer */}
+      <div
+        className="mt-auto pt-4 px-4 pb-3 text-center"
+        style={{ borderTop: '1px solid #F1F5F9' }}
+      >
+        <p style={{ fontSize: '10px', color: '#CBD5E1', lineHeight: 1.4 }}>
+          Utvecklad av Emmanuel Markatatos
+        </p>
+        <p style={{ fontSize: '10px', color: '#CBD5E1', lineHeight: 1.4 }}>
+          Kunskapsskolan Spånga
+        </p>
+      </div>
     </aside>
   );
 }

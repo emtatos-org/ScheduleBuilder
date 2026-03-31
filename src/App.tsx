@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { DEFAULT_LGR22_TARGETS } from './constants';
 import Sidebar from './components/Sidebar';
 import ScheduleGrid from './components/ScheduleGrid';
@@ -55,9 +55,7 @@ function App() {
 
   const activeVariant = variantStore.variants.find(v => v.id === variantStore.activeVariantId)!;
 
-  const [schedule, setSchedule] = useState<FullSchedule>(
-    () => activeVariant.schedule,
-  );
+  const { schedule, updateSchedule, undo, setScheduleDirectly, undoCount, clearHistory } = useScheduleHistory(activeVariant.schedule);
 
   const [editingPass, setEditingPass] = useState<EditingPass | null>(null);
   const [addingPass, setAddingPass] = useState<AddingPass | null>(null);
@@ -80,7 +78,26 @@ function App() {
     setTargets({ ...DEFAULT_LGR22_TARGETS });
   };
 
-  const { pushState, undo, undoCount, clearHistory } = useScheduleHistory();
+  // Auto-save schedule changes to the active variant
+  const isInitialMount = useRef(true);
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    setVariantStore(prev => {
+      const updated: VariantStore = {
+        ...prev,
+        variants: prev.variants.map(v =>
+          v.id === prev.activeVariantId
+            ? { ...v, schedule, updatedAt: new Date().toISOString() }
+            : v,
+        ),
+      };
+      saveVariants(updated);
+      return updated;
+    });
+  }, [schedule]);
 
   const toggleClass = (cls: string) => {
     setSelectedClasses(prev =>
@@ -88,36 +105,8 @@ function App() {
     );
   };
 
-  /* ── Schedule mutation helpers ──────────────────────────────── */
-
-  const updateAndSave = useCallback((next: FullSchedule, skipHistory = false) => {
-    if (!skipHistory) {
-      setSchedule(prev => {
-        pushState(prev);
-        return next;
-      });
-    } else {
-      setSchedule(next);
-    }
-    saveSchedule(next);
-
-    // Auto-save to active variant
-    setVariantStore(prev => {
-      const updated: VariantStore = {
-        ...prev,
-        variants: prev.variants.map(v =>
-          v.id === prev.activeVariantId
-            ? { ...v, schedule: next, updatedAt: new Date().toISOString() }
-            : v,
-        ),
-      };
-      saveVariants(updated);
-      return updated;
-    });
-  }, [pushState]);
-
   const handleImportSchedule = (imported: FullSchedule) => {
-    updateAndSave(imported);
+    updateSchedule(imported);
   };
 
   const handleSavePass = (updated: SchedulePass) => {
@@ -132,7 +121,7 @@ function App() {
         ),
       },
     };
-    updateAndSave(next);
+    updateSchedule(next);
     setEditingPass(null);
   };
 
@@ -146,7 +135,7 @@ function App() {
         [dayKey]: schedule[cls][dayKey].filter(p => p.id !== id),
       },
     };
-    updateAndSave(next);
+    updateSchedule(next);
     setEditingPass(null);
   };
 
@@ -164,18 +153,15 @@ function App() {
         [dayKey]: [...schedule[cls][dayKey], newPass],
       },
     };
-    updateAndSave(next);
+    updateSchedule(next);
     setAddingPass(null);
   };
 
   /* ── Undo handler ──────────────────────────────────────────── */
 
   const handleUndo = useCallback(() => {
-    const prev = undo();
-    if (prev) {
-      updateAndSave(prev, true);
-    }
-  }, [undo, updateAndSave]);
+    undo();
+  }, [undo]);
 
   // Listen for Ctrl+Z custom event from useScheduleHistory
   useEffect(() => {
@@ -235,8 +221,7 @@ function App() {
     };
     setVariantStore(updated);
     saveVariants(updated);
-    setSchedule(defaultSched);
-    saveSchedule(defaultSched);
+    setScheduleDirectly(defaultSched);
     clearHistory();
   };
 
@@ -253,8 +238,7 @@ function App() {
     };
     setVariantStore(updated);
     saveVariants(updated);
-    setSchedule(variant.schedule);
-    saveSchedule(variant.schedule);
+    setScheduleDirectly(variant.schedule);
     clearHistory();
   };
 
@@ -267,8 +251,7 @@ function App() {
 
     if (activeId === variantId) {
       activeId = remaining[0].id;
-      setSchedule(remaining[0].schedule);
-      saveSchedule(remaining[0].schedule);
+      setScheduleDirectly(remaining[0].schedule);
       clearHistory();
     }
 
