@@ -9,7 +9,6 @@ const START_MIN = START_HOUR * 60;
 const TOTAL_MIN = TOTAL_HOURS * 60;
 
 interface ScheduleGridProps {
-  className: string;
   schedule: ClassSchedule;
   onClickPass: (pass: SchedulePass) => void;
   onClickSlot: (day: DayKey) => void;
@@ -56,7 +55,6 @@ function PassBlock({
 }
 
 export default function ScheduleGrid({
-  className: cls,
   schedule,
   onClickPass,
   onClickSlot,
@@ -65,7 +63,7 @@ export default function ScheduleGrid({
 
   return (
     <div className="mb-8">
-      <h2 className="text-lg font-bold text-gray-800 mb-3">Åk {cls}</h2>
+      {/* Heading rendered by parent to allow warnings between heading and grid */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         <div className="flex">
           {/* Tidsaxel */}
