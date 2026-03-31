@@ -336,28 +336,36 @@ function App() {
             const result = validateSchedule(schedule, cls, targets);
             return (
               <div key={cls}>
+                <h2 className="text-lg font-bold text-gray-800 mb-3">Åk {cls}</h2>
                 {/* Validation warnings */}
                 {result.warnings.length > 0 && (
-                  <div className="mb-2 rounded-lg border border-yellow-300 bg-yellow-50 p-3">
+                  <div className="mb-2 space-y-1">
                     {result.warnings.map((w, i) => (
-                      <p
+                      <div
                         key={i}
-                        className={`text-xs ${
+                        className={`rounded-lg border p-3 text-xs ${
                           w.level === 'error'
-                            ? 'text-red-700 font-semibold'
+                            ? 'border-red-300 bg-red-50 text-red-600 font-semibold'
                             : w.level === 'warn'
-                              ? 'text-yellow-800'
-                              : 'text-blue-700'
+                              ? 'border-yellow-300 bg-yellow-50 text-yellow-800'
+                              : w.level === 'success'
+                                ? 'border-green-300 bg-green-50 text-green-600'
+                                : 'border-blue-300 bg-blue-50 text-blue-700'
                         }`}
                       >
-                        {w.level === 'error' ? '\u26D4' : w.level === 'warn' ? '\u26A0\uFE0F' : '\u2139\uFE0F'}{' '}
+                        {w.level === 'error'
+                          ? '\u26D4'
+                          : w.level === 'warn'
+                            ? '\u26A0\uFE0F'
+                            : w.level === 'success'
+                              ? '\u2705'
+                              : '\u2139\uFE0F'}{' '}
                         {w.msg}
-                      </p>
+                      </div>
                     ))}
                   </div>
                 )}
                 <ScheduleGrid
-                  className={cls}
                   schedule={schedule[cls]}
                   onClickPass={(pass) => {
                     const dk = findDayForPass(cls, pass.id);

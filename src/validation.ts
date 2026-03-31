@@ -3,7 +3,7 @@ import { MAX_TEACHER_HOURS, DAYS, DEFAULT_LGR22_TARGETS } from './constants';
 import { getGrade, minutesToTime } from './utils';
 
 export interface ValidationWarning {
-  level: 'error' | 'warn' | 'info';
+  level: 'error' | 'warn' | 'info' | 'success';
   msg: string;
 }
 
@@ -108,14 +108,27 @@ export function validateSchedule(
     });
   }
 
-  // Rule 6: Guaranteed time under target
+  // Rule 6: Guaranteed time vs target – always show
   const grade = getGrade(cls);
   const target = targets[grade];
-  if (target && weeklyGuaranteed < target) {
-    warnings.push({
-      level: 'info',
-      msg: `Garanterad tid ${weeklyGuaranteed} min/v är under mål ${target} min`,
-    });
+  if (target) {
+    const deviation = weeklyGuaranteed - target;
+    if (deviation < 0) {
+      warnings.push({
+        level: 'warn',
+        msg: `Garanterad tid ${weeklyGuaranteed} min/v är under mål ${target} min (${deviation} min)`,
+      });
+    } else if (deviation === 0) {
+      warnings.push({
+        level: 'success',
+        msg: `Garanterad tid ${weeklyGuaranteed} min/v ✓ uppfyller mål ${target} min`,
+      });
+    } else {
+      warnings.push({
+        level: 'success',
+        msg: `Garanterad tid ${weeklyGuaranteed} min/v ✓ överstiger mål ${target} min (+${deviation} min)`,
+      });
+    }
   }
 
   return { warnings, weeklyGuaranteed, weeklyTeacher, weeklyPh };
