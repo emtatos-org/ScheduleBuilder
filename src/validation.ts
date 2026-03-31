@@ -1,5 +1,5 @@
-import type { FullSchedule, SchedulePass } from './types';
-import { LGR22_TARGETS, MAX_TEACHER_HOURS, DAYS } from './constants';
+import type { FullSchedule, SchedulePass, GradeTargets } from './types';
+import { MAX_TEACHER_HOURS, DAYS, DEFAULT_LGR22_TARGETS } from './constants';
 import { getGrade, minutesToTime } from './utils';
 
 export interface ValidationWarning {
@@ -19,6 +19,7 @@ const TEACHER_TYPES = new Set(['lektion', 'basgrupp', 'em-bg', 'bro', 'ph-tid'])
 export function validateSchedule(
   schedule: FullSchedule,
   cls: string,
+  targets: GradeTargets = DEFAULT_LGR22_TARGETS,
 ): ValidationResult {
   const classSchedule = schedule[cls];
   if (!classSchedule) {
@@ -107,13 +108,13 @@ export function validateSchedule(
     });
   }
 
-  // Rule 6: Guaranteed time under Lgr22 target
+  // Rule 6: Guaranteed time under target
   const grade = getGrade(cls);
-  const target = LGR22_TARGETS[grade];
+  const target = targets[grade];
   if (target && weeklyGuaranteed < target) {
     warnings.push({
       level: 'info',
-      msg: `Garanterad tid ${weeklyGuaranteed} min/v är under Lgr22-mål ${target} min`,
+      msg: `Garanterad tid ${weeklyGuaranteed} min/v är under mål ${target} min`,
     });
   }
 

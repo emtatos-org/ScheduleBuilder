@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
-import { CLASSES } from '../constants';
-import type { FullSchedule } from '../types';
+import { CLASSES, DEFAULT_LGR22_TARGETS } from '../constants';
+import type { FullSchedule, GradeTargets } from '../types';
 import type { VariantStore } from '../storage';
 
 interface SidebarProps {
@@ -18,6 +18,9 @@ interface SidebarProps {
   onLoadVariant: (id: string) => void;
   onDeleteVariant: (id: string) => void;
   onRenameVariant: (id: string, name: string) => void;
+  targets: GradeTargets;
+  onUpdateTarget: (grade: number, value: number) => void;
+  onResetTargets: () => void;
 }
 
 const VIEWS = [
@@ -52,6 +55,9 @@ export default function Sidebar({
   onLoadVariant,
   onDeleteVariant,
   onRenameVariant,
+  targets,
+  onUpdateTarget,
+  onResetTargets,
 }: SidebarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importError, setImportError] = useState<string | null>(null);
@@ -240,6 +246,40 @@ export default function Sidebar({
             })}
           </div>
         )}
+      </div>
+
+      {/* ── MÅLTAL section ──────────────────────────────────── */}
+      <div className="mb-6">
+        <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+          Måltal
+        </h2>
+        <div className="space-y-1.5">
+          {Object.keys(DEFAULT_LGR22_TARGETS)
+            .map(Number)
+            .sort((a, b) => a - b)
+            .map((grade) => (
+              <div key={grade} className="flex items-center gap-1.5">
+                <span className="text-xs text-gray-600 w-[32px] shrink-0">Åk {grade}</span>
+                <input
+                  type="number"
+                  value={targets[grade] ?? DEFAULT_LGR22_TARGETS[grade]}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value, 10);
+                    if (!isNaN(val)) onUpdateTarget(grade, val);
+                  }}
+                  className="w-[70px] text-right text-xs border border-gray-300 rounded px-1.5 py-1 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                />
+                <span className="text-xs text-gray-400">min/v</span>
+              </div>
+            ))}
+        </div>
+        <button
+          onClick={onResetTargets}
+          className="mt-2 flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium border border-gray-300 text-gray-600 hover:bg-gray-50 transition-colors w-full justify-center"
+        >
+          <span>{String.fromCodePoint(0x1F504)}</span>
+          <span>Återställ Lgr22</span>
+        </button>
       </div>
 
       {/* ── Undo button ──────────────────────────────────────── */}
