@@ -55,7 +55,15 @@ export default function AddPassModal({ dayKey, onAdd, onClose }: AddPassModalPro
           <label className="block text-sm font-medium text-gray-600 mb-1">Typ</label>
           <select
             value={type}
-            onChange={(e) => setType(e.target.value as PassType)}
+            onChange={(e) => {
+              const newType = e.target.value as PassType;
+              const oldDefault = PASS_TYPES.find(p => p.value === type)?.label;
+              if (label === oldDefault || label === '') {
+                const newDefault = PASS_TYPES.find(p => p.value === newType)?.label || '';
+                setLabel(newDefault);
+              }
+              setType(newType);
+            }}
             className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
           >
             {PASS_TYPES.map((pt) => (
