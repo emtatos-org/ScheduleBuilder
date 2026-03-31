@@ -11,6 +11,7 @@ interface PassModalProps {
 }
 
 const DURATION_PRESETS = [20, 30, 45, 60, 90];
+const DEFAULT_LABELS = new Set(PASS_TYPES.map(pt => pt.label));
 
 export default function PassModal({ pass, onSave, onDelete, onClose }: PassModalProps) {
   const [type, setType] = useState<PassType>(pass.type);
@@ -21,6 +22,18 @@ export default function PassModal({ pass, onSave, onDelete, onClose }: PassModal
   const [guaranteed, setGuaranteed] = useState(pass.guaranteed);
 
   const timeOptions = generateTimeOptions();
+
+  const handleTypeChange = (newType: PassType) => {
+    const newDefault = PASS_TYPES.find(p => p.value === newType)?.label || '';
+
+    // Om nuvarande etikett är ett default-namn (för VILKEN typ som helst) eller tom → byt
+    if (label === '' || DEFAULT_LABELS.has(label)) {
+      setLabel(newDefault);
+    }
+    // Annars (användaren har skrivit t.ex. "Matematik") → behåll
+
+    setType(newType);
+  };
 
   const handleSave = () => {
     onSave({
@@ -57,15 +70,7 @@ export default function PassModal({ pass, onSave, onDelete, onClose }: PassModal
           <label className="block text-sm font-medium text-gray-600 mb-1">Typ</label>
           <select
             value={type}
-            onChange={(e) => {
-              const newType = e.target.value as PassType;
-              const oldDefault = PASS_TYPES.find(p => p.value === type)?.label;
-              if (label === oldDefault || label === '') {
-                const newDefault = PASS_TYPES.find(p => p.value === newType)?.label || '';
-                setLabel(newDefault);
-              }
-              setType(newType);
-            }}
+            onChange={(e) => handleTypeChange(e.target.value as PassType)}
             className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             {PASS_TYPES.map((pt) => (
