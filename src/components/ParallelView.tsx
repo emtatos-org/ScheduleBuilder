@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { DAYS, CLASSES, START_HOUR, END_HOUR } from '../constants';
-import type { FullSchedule, DayKey, SchedulePass, PassColors } from '../types';
+import type { FullSchedule, DayKey, SchedulePass, PassColors, WeekKey, ClassSchedule } from '../types';
 import { minutesToTime } from '../utils';
 
 const HOUR_HEIGHT = 70;
@@ -27,11 +27,13 @@ interface PassWithParallel extends SchedulePass {
 function computeParallelism(
   schedule: FullSchedule,
   dayKey: DayKey,
+  weekKey: WeekKey,
 ): Record<string, PassWithParallel[]> {
   // Collect all passes for this day across all classes that count for parallelism
   const allPasses: { cls: string; pass: SchedulePass }[] = [];
   for (const cls of CLASSES) {
-    const passes = schedule[cls]?.[dayKey] || [];
+    const classWeek: ClassSchedule | undefined = schedule[cls]?.[weekKey];
+    const passes = classWeek?.[dayKey] || [];
     for (const p of passes) {
       if (PARALLEL_TYPES.has(p.type)) {
         allPasses.push({ cls, pass: p });
@@ -41,7 +43,8 @@ function computeParallelism(
 
   const result: Record<string, PassWithParallel[]> = {};
   for (const cls of CLASSES) {
-    const passes = schedule[cls]?.[dayKey] || [];
+    const classWeek: ClassSchedule | undefined = schedule[cls]?.[weekKey];
+    const passes = classWeek?.[dayKey] || [];
     result[cls] = passes.map((p) => {
       if (!PARALLEL_TYPES.has(p.type)) {
         return { ...p, parallelCount: 0, parallelClasses: [] };
@@ -135,16 +138,34 @@ function ParallelPassBlock({ pass, cls, dayKey, passColors, onClickPass }: Paral
 
 export default function ParallelView({ schedule, selectedClasses, passColors, onClickPass, onClickSlot }: ParallelViewProps) {
   const [selectedDay, setSelectedDay] = useState<DayKey>('mon');
+  const [activeWeek, setActiveWeek] = useState<WeekKey>('A');
 
   const parallelData = useMemo(
-    () => computeParallelism(schedule, selectedDay),
-    [schedule, selectedDay],
+    () => computeParallelism(schedule, selectedDay, activeWeek),
+    [schedule, selectedDay, activeWeek],
   );
   const hours = Array.from({ length: TOTAL_HOURS + 1 }, (_, i) => START_HOUR + i);
 
   return (
     <div>
       <h2 className="text-lg font-bold text-gray-800 mb-4">Parallellitetsvy</h2>
+
+      {/* Week toggle */}
+      <div className="flex gap-1 mb-3">
+        {(['A', 'B'] as WeekKey[]).map((wk) => (
+          <button
+            key={wk}
+            onClick={() => setActiveWeek(wk)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              activeWeek === wk
+                ? 'bg-blue-600 text-white'
+                : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'
+            }`}
+          >
+            Vecka {wk}
+          </button>
+        ))}
+      </div>
 
       {/* Day selector */}
       <div className="flex gap-2 mb-4">

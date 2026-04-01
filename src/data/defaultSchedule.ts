@@ -1,4 +1,4 @@
-import type { FullSchedule, SchedulePass, DayKey } from '../types';
+import type { FullSchedule, SchedulePass, DayKey, ClassSchedule } from '../types';
 import { timeToMinutes } from '../utils';
 
 let idCounter = 0;
@@ -349,14 +349,21 @@ function build9A(): Record<DayKey, SchedulePass[]> {
   };
 }
 
+function wrapWeek(cs: ClassSchedule): { A: ClassSchedule; B: ClassSchedule } {
+  return {
+    A: cs,
+    B: JSON.parse(JSON.stringify(cs)) as ClassSchedule,
+  };
+}
+
 export function createDefaultSchedule(): FullSchedule {
   idCounter = 0;
   return {
-    '4A': build4A(),
-    '5A': build5A(),
-    '6A': build6A(),
-    '7A': build7A(),
-    '8A': build8A(),
-    '9A': build9A(),
+    '4A': wrapWeek(build4A()),
+    '5A': wrapWeek(build5A()),
+    '6A': wrapWeek(build6A()),
+    '7A': wrapWeek(build7A()),
+    '8A': wrapWeek(build8A()),
+    '9A': wrapWeek(build9A()),
   };
 }

@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { CLASSES, DEFAULT_LGR22_TARGETS, PASS_TYPES } from '../constants';
-import type { FullSchedule, GradeTargets, PassColors } from '../types';
+import type { FullSchedule, GradeTargets, PassColors, WeekKey } from '../types';
+import { migrateSchedule } from '../types';
 import type { VariantStore } from '../storage';
 
 interface SidebarProps {
@@ -93,7 +94,8 @@ export default function Sidebar({
         if (typeof data !== 'object' || data === null) {
           throw new Error('Ogiltigt format');
         }
-        onImportSchedule(data as FullSchedule);
+        const migrated = migrateSchedule(data as Record<string, unknown>);
+        onImportSchedule(migrated);
         setImportError(null);
       } catch {
         setImportError('Ogiltigt JSON-format. Kontrollera filen.');
@@ -104,32 +106,36 @@ export default function Sidebar({
   };
 
   const handleExportCSV = () => {
-    const headers = ['Klass', 'Dag', 'Typ', 'Start', 'Slut', 'Längd (min)', 'Etikett', 'Garanterad'];
+    const headers = ['Klass', 'Vecka', 'Dag', 'Typ', 'Start', 'Slut', 'L\u00e4ngd (min)', 'Etikett', 'Garanterad'];
     const dayLabels: Record<string, string> = {
-      mon: 'Måndag', tue: 'Tisdag', wed: 'Onsdag', thu: 'Torsdag', fri: 'Fredag',
+      mon: 'M\u00e5ndag', tue: 'Tisdag', wed: 'Onsdag', thu: 'Torsdag', fri: 'Fredag',
     };
     const rows: string[][] = [];
 
     for (const cls of Object.keys(schedule)) {
-      const classSchedule = schedule[cls];
-      for (const dayKey of Object.keys(classSchedule)) {
-        const passes = classSchedule[dayKey as keyof typeof classSchedule];
-        for (const p of passes) {
-          const startH = Math.floor(p.start / 60);
-          const startM = p.start % 60;
-          const endMin = p.start + p.duration;
-          const endH = Math.floor(endMin / 60);
-          const endM = endMin % 60;
-          rows.push([
-            cls,
-            dayLabels[dayKey] || dayKey,
-            p.type,
-            `${String(startH).padStart(2, '0')}:${String(startM).padStart(2, '0')}`,
-            `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`,
-            String(p.duration),
-            p.label,
-            p.guaranteed ? 'Ja' : 'Nej',
-          ]);
+      const weekSchedule = schedule[cls];
+      for (const weekKey of ['A', 'B'] as WeekKey[]) {
+        const classSchedule = weekSchedule[weekKey];
+        for (const dayKey of Object.keys(classSchedule)) {
+          const passes = classSchedule[dayKey as keyof typeof classSchedule];
+          for (const p of passes) {
+            const startH = Math.floor(p.start / 60);
+            const startM = p.start % 60;
+            const endMin = p.start + p.duration;
+            const endH = Math.floor(endMin / 60);
+            const endM = endMin % 60;
+            rows.push([
+              cls,
+              weekKey,
+              dayLabels[dayKey] || dayKey,
+              p.type,
+              `${String(startH).padStart(2, '0')}:${String(startM).padStart(2, '0')}`,
+              `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`,
+              String(p.duration),
+              p.label,
+              p.guaranteed ? 'Ja' : 'Nej',
+            ]);
+          }
         }
       }
     }
