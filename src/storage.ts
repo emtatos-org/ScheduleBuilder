@@ -1,4 +1,5 @@
 import type { FullSchedule } from './types';
+import { migrateSchedule } from './types';
 
 const STORAGE_KEY = 'schedulebuilder-v11';
 const VARIANTS_KEY = 'schedulebuilder-variants';
@@ -10,8 +11,10 @@ export function saveSchedule(schedule: FullSchedule): void {
 export function loadSchedule(): FullSchedule | null {
   const data = localStorage.getItem(STORAGE_KEY);
   if (!data) return null;
-  try { return JSON.parse(data); } 
-  catch { return null; }
+  try {
+    const parsed = JSON.parse(data);
+    return migrateSchedule(parsed);
+  } catch { return null; }
 }
 
 export function clearSchedule(): void {
@@ -40,6 +43,12 @@ export function saveVariants(store: VariantStore): void {
 export function loadVariants(): VariantStore | null {
   const data = localStorage.getItem(VARIANTS_KEY);
   if (!data) return null;
-  try { return JSON.parse(data); }
-  catch { return null; }
+  try {
+    const parsed = JSON.parse(data) as VariantStore;
+    parsed.variants = parsed.variants.map(v => ({
+      ...v,
+      schedule: migrateSchedule(v.schedule as unknown as Record<string, unknown>),
+    }));
+    return parsed;
+  } catch { return null; }
 }

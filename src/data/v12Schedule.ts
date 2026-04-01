@@ -1,4 +1,4 @@
-import type { FullSchedule, SchedulePass, DayKey } from '../types';
+import type { FullSchedule, SchedulePass, DayKey, ClassSchedule } from '../types';
 import { timeToMinutes } from '../utils';
 import { createDefaultSchedule } from './defaultSchedule';
 
@@ -352,15 +352,22 @@ function build9A_v12(): Record<DayKey, SchedulePass[]> {
    createV12Schedule — Åk 4+5 from v11, Åk 6–9 with rotating lunch
    ══════════════════════════════════════════════════════════════════ */
 
+function wrapWeek(cs: ClassSchedule): { A: ClassSchedule; B: ClassSchedule } {
+  return {
+    A: cs,
+    B: JSON.parse(JSON.stringify(cs)) as ClassSchedule,
+  };
+}
+
 export function createV12Schedule(): FullSchedule {
   idCounter = 0;
   const v11 = createDefaultSchedule();
   return {
     '4A': v11['4A'],
     '5A': v11['5A'],
-    '6A': build6A_v12(),
-    '7A': build7A_v12(),
-    '8A': build8A_v12(),
-    '9A': build9A_v12(),
+    '6A': wrapWeek(build6A_v12()),
+    '7A': wrapWeek(build7A_v12()),
+    '8A': wrapWeek(build8A_v12()),
+    '9A': wrapWeek(build9A_v12()),
   };
 }

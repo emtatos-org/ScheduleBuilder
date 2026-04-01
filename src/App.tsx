@@ -12,7 +12,7 @@ import { loadSchedule, saveVariants, loadVariants } from './storage';
 import type { ScheduleVariant, VariantStore } from './storage';
 import { validateSchedule } from './validation';
 import { useScheduleHistory } from './hooks/useScheduleHistory';
-import type { DayKey, FullSchedule, SchedulePass, GradeTargets, PassColors } from './types';
+import type { DayKey, FullSchedule, SchedulePass, GradeTargets, PassColors, WeekKey } from './types';
 
 interface EditingPass {
   cls: string;
@@ -55,6 +55,7 @@ function App() {
   const [selectedClasses, setSelectedClasses] = useState<string[]>(['7A']);
   const [activeView, setActiveView] = useState<string>('schema');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [activeWeek, setActiveWeek] = useState<WeekKey>('A');
 
   const [variantStore, setVariantStore] = useState<VariantStore>(initVariantStore);
 
@@ -134,13 +135,17 @@ function App() {
   const handleSavePass = (updated: SchedulePass) => {
     if (!editingPass) return;
     const { cls, dayKey } = editingPass;
+    const weekData = schedule[cls][activeWeek];
     const next: FullSchedule = {
       ...schedule,
       [cls]: {
         ...schedule[cls],
-        [dayKey]: schedule[cls][dayKey].map(p =>
-          p.id === updated.id ? updated : p,
-        ),
+        [activeWeek]: {
+          ...weekData,
+          [dayKey]: weekData[dayKey].map(p =>
+            p.id === updated.id ? updated : p,
+          ),
+        },
       },
     };
     updateSchedule(next);
@@ -150,11 +155,15 @@ function App() {
   const handleDeletePass = (id: string) => {
     if (!editingPass) return;
     const { cls, dayKey } = editingPass;
+    const weekData = schedule[cls][activeWeek];
     const next: FullSchedule = {
       ...schedule,
       [cls]: {
         ...schedule[cls],
-        [dayKey]: schedule[cls][dayKey].filter(p => p.id !== id),
+        [activeWeek]: {
+          ...weekData,
+          [dayKey]: weekData[dayKey].filter(p => p.id !== id),
+        },
       },
     };
     updateSchedule(next);
@@ -168,11 +177,15 @@ function App() {
       ...passData,
       id: crypto.randomUUID(),
     };
+    const weekData = schedule[cls][activeWeek];
     const next: FullSchedule = {
       ...schedule,
       [cls]: {
         ...schedule[cls],
-        [dayKey]: [...schedule[cls][dayKey], newPass],
+        [activeWeek]: {
+          ...weekData,
+          [dayKey]: [...weekData[dayKey], newPass],
+        },
       },
     };
     updateSchedule(next);
@@ -313,8 +326,22 @@ function App() {
 
   /* ── Find which day a pass belongs to ──────────────────────── */
 
+  const handleCopyWeek = () => {
+    const from = activeWeek;
+    const to = activeWeek === 'A' ? 'B' : 'A';
+    if (!confirm(`Kopiera hela Vecka ${from} till Vecka ${to}? Befintligt innehåll i Vecka ${to} ersätts.`)) return;
+    const next: FullSchedule = { ...schedule };
+    for (const cls of Object.keys(next)) {
+      next[cls] = {
+        ...next[cls],
+        [to]: JSON.parse(JSON.stringify(next[cls][from])),
+      };
+    }
+    updateSchedule(next);
+  };
+
   const findDayForPass = (cls: string, passId: string): DayKey | null => {
-    const cs = schedule[cls];
+    const cs = schedule[cls]?.[activeWeek];
     if (!cs) return null;
     for (const dk of Object.keys(cs) as DayKey[]) {
       if (cs[dk].some(p => p.id === passId)) return dk;
@@ -382,54 +409,83 @@ function App() {
       </div>
 
       <main className="flex-1 overflow-auto p-4 md:p-6 pt-14 md:pt-6">
-        {activeView === 'schema' &&
-          selectedClasses.map(cls => {
-            const result = validateSchedule(schedule, cls, targets);
-            return (
-              <div key={cls}>
-                <h2 className="text-lg font-bold text-gray-800 mb-3">Åk {cls}</h2>
-                {/* Validation warnings */}
-                {result.warnings.length > 0 && (
-                  <div className="mb-2 space-y-1">
-                    {result.warnings.map((w, i) => (
-                      <div
-                        key={i}
-                        className={`rounded-lg border p-3 text-xs ${
-                          w.level === 'error'
-                            ? 'border-red-300 bg-red-50 text-red-600 font-semibold'
-                            : w.level === 'warn'
-                              ? 'border-yellow-300 bg-yellow-50 text-yellow-800'
-                              : w.level === 'success'
-                                ? 'border-green-300 bg-green-50 text-green-600'
-                                : 'border-blue-300 bg-blue-50 text-blue-700'
-                        }`}
-                      >
-                        {w.level === 'error'
-                          ? '\u26D4'
-                          : w.level === 'warn'
-                            ? '\u26A0\uFE0F'
-                            : w.level === 'success'
-                              ? '\u2705'
-                              : '\u2139\uFE0F'}{' '}
-                        {w.msg}
-                      </div>
-                    ))}
-                  </div>
-                )}
-                <ScheduleGrid
-                  schedule={schedule[cls]}
-                  passColors={passColors}
-                  onClickPass={(pass) => {
-                    const dk = findDayForPass(cls, pass.id);
-                    if (dk) setEditingPass({ cls, dayKey: dk, pass });
-                  }}
-                  onClickSlot={(day: DayKey) =>
-                    setAddingPass({ cls, dayKey: day })
-                  }
-                />
+        {activeView === 'schema' && (
+          <>
+            {/* Week toggle + copy button */}
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex gap-1">
+                {(['A', 'B'] as WeekKey[]).map((wk) => (
+                  <button
+                    key={wk}
+                    onClick={() => setActiveWeek(wk)}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      activeWeek === wk
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    Vecka {wk}
+                  </button>
+                ))}
               </div>
-            );
-          })}
+              <button
+                onClick={handleCopyWeek}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border border-gray-300 text-gray-600 hover:bg-gray-50 transition-colors"
+                title={`Kopiera Vecka ${activeWeek} till Vecka ${activeWeek === 'A' ? 'B' : 'A'}`}
+              >
+                {'\u{1F4CB}'} Kopiera {activeWeek} {'\u2192'} {activeWeek === 'A' ? 'B' : 'A'}
+              </button>
+            </div>
+
+            {selectedClasses.map(cls => {
+              const result = validateSchedule(schedule, cls, targets, activeWeek);
+              return (
+                <div key={cls}>
+                  <h2 className="text-lg font-bold text-gray-800 mb-3">Åk {cls}</h2>
+                  {/* Validation warnings */}
+                  {result.warnings.length > 0 && (
+                    <div className="mb-2 space-y-1">
+                      {result.warnings.map((w, i) => (
+                        <div
+                          key={i}
+                          className={`rounded-lg border p-3 text-xs ${
+                            w.level === 'error'
+                              ? 'border-red-300 bg-red-50 text-red-600 font-semibold'
+                              : w.level === 'warn'
+                                ? 'border-yellow-300 bg-yellow-50 text-yellow-800'
+                                : w.level === 'success'
+                                  ? 'border-green-300 bg-green-50 text-green-600'
+                                  : 'border-blue-300 bg-blue-50 text-blue-700'
+                          }`}
+                        >
+                          {w.level === 'error'
+                            ? '\u26D4'
+                            : w.level === 'warn'
+                              ? '\u26A0\uFE0F'
+                              : w.level === 'success'
+                                ? '\u2705'
+                                : '\u2139\uFE0F'}{' '}
+                          {w.msg}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <ScheduleGrid
+                    schedule={schedule[cls][activeWeek]}
+                    passColors={passColors}
+                    onClickPass={(pass) => {
+                      const dk = findDayForPass(cls, pass.id);
+                      if (dk) setEditingPass({ cls, dayKey: dk, pass });
+                    }}
+                    onClickSlot={(day: DayKey) =>
+                      setAddingPass({ cls, dayKey: day })
+                    }
+                  />
+                </div>
+              );
+            })}
+          </>
+        )}
         {activeView === 'statistik' && (
           <StatisticsView
             schedule={schedule}
