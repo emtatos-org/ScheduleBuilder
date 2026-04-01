@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { DAYS, CLASSES, START_HOUR, END_HOUR } from '../constants';
-import type { FullSchedule, DayKey, SchedulePass } from '../types';
-import { minutesToTime, getPassColor } from '../utils';
+import type { FullSchedule, DayKey, SchedulePass, PassColors } from '../types';
+import { minutesToTime } from '../utils';
 
 const HOUR_HEIGHT = 70;
 const TOTAL_HOURS = END_HOUR - START_HOUR;
@@ -14,6 +14,7 @@ const PARALLEL_TYPES = new Set(['lektion', 'bro', 'ph-tid']);
 interface ParallelViewProps {
   schedule: FullSchedule;
   selectedClasses: string[];
+  passColors: PassColors;
   onClickPass?: (cls: string, dayKey: DayKey, pass: SchedulePass) => void;
   onClickSlot?: (cls: string, dayKey: DayKey) => void;
 }
@@ -65,11 +66,12 @@ interface ParallelPassBlockProps {
   pass: PassWithParallel;
   cls: string;
   dayKey: DayKey;
+  passColors: PassColors;
   onClickPass?: (cls: string, dayKey: DayKey, pass: SchedulePass) => void;
 }
 
-function ParallelPassBlock({ pass, cls, dayKey, onClickPass }: ParallelPassBlockProps) {
-  const color = getPassColor(pass.type);
+function ParallelPassBlock({ pass, cls, dayKey, passColors, onClickPass }: ParallelPassBlockProps) {
+  const color = passColors[pass.type];
   const top = ((pass.start - START_MIN) / TOTAL_MIN) * TOTAL_HEIGHT;
   const height = (pass.duration / TOTAL_MIN) * TOTAL_HEIGHT;
   const showTime = height >= 32;
@@ -131,7 +133,7 @@ function ParallelPassBlock({ pass, cls, dayKey, onClickPass }: ParallelPassBlock
   );
 }
 
-export default function ParallelView({ schedule, selectedClasses, onClickPass, onClickSlot }: ParallelViewProps) {
+export default function ParallelView({ schedule, selectedClasses, passColors, onClickPass, onClickSlot }: ParallelViewProps) {
   const [selectedDay, setSelectedDay] = useState<DayKey>('mon');
 
   const parallelData = useMemo(
@@ -236,6 +238,7 @@ export default function ParallelView({ schedule, selectedClasses, onClickPass, o
                       pass={pass}
                       cls={cls}
                       dayKey={selectedDay}
+                      passColors={passColors}
                       onClickPass={onClickPass}
                     />
                   ))}

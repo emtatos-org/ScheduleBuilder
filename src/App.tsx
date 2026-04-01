@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { DEFAULT_LGR22_TARGETS } from './constants';
+import { DEFAULT_LGR22_TARGETS, DEFAULT_PASS_COLORS } from './constants';
 import Sidebar from './components/Sidebar';
 import ScheduleGrid from './components/ScheduleGrid';
 import PassModal from './components/PassModal';
@@ -12,7 +12,7 @@ import { loadSchedule, saveVariants, loadVariants } from './storage';
 import type { ScheduleVariant, VariantStore } from './storage';
 import { validateSchedule } from './validation';
 import { useScheduleHistory } from './hooks/useScheduleHistory';
-import type { DayKey, FullSchedule, SchedulePass, GradeTargets } from './types';
+import type { DayKey, FullSchedule, SchedulePass, GradeTargets, PassColors } from './types';
 
 interface EditingPass {
   cls: string;
@@ -80,6 +80,24 @@ function App() {
 
   const handleResetTargets = () => {
     setTargets({ ...DEFAULT_LGR22_TARGETS });
+  };
+
+  const [passColors, setPassColors] = useState<PassColors>(() => {
+    const saved = localStorage.getItem('schedulebuilder-colors');
+    if (saved) try { return JSON.parse(saved); } catch { /* ignore */ }
+    return { ...DEFAULT_PASS_COLORS };
+  });
+
+  useEffect(() => {
+    localStorage.setItem('schedulebuilder-colors', JSON.stringify(passColors));
+  }, [passColors]);
+
+  const handleUpdateColor = (passType: string, color: string) => {
+    setPassColors(prev => ({ ...prev, [passType]: color }));
+  };
+
+  const handleResetColors = () => {
+    setPassColors({ ...DEFAULT_PASS_COLORS });
   };
 
   // Auto-save schedule changes to the active variant
@@ -357,6 +375,9 @@ function App() {
           targets={targets}
           onUpdateTarget={handleUpdateTarget}
           onResetTargets={handleResetTargets}
+          passColors={passColors}
+          onUpdateColor={handleUpdateColor}
+          onResetColors={handleResetColors}
         />
       </div>
 
@@ -397,6 +418,7 @@ function App() {
                 )}
                 <ScheduleGrid
                   schedule={schedule[cls]}
+                  passColors={passColors}
                   onClickPass={(pass) => {
                     const dk = findDayForPass(cls, pass.id);
                     if (dk) setEditingPass({ cls, dayKey: dk, pass });
@@ -419,6 +441,7 @@ function App() {
           <ParallelView
             schedule={schedule}
             selectedClasses={selectedClasses}
+            passColors={passColors}
             onClickPass={(cls, dayKey, pass) => {
               setEditingPass({ cls, dayKey, pass });
             }}

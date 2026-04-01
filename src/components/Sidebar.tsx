@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
-import { CLASSES, DEFAULT_LGR22_TARGETS } from '../constants';
-import type { FullSchedule, GradeTargets } from '../types';
+import { CLASSES, DEFAULT_LGR22_TARGETS, PASS_TYPES } from '../constants';
+import type { FullSchedule, GradeTargets, PassColors } from '../types';
 import type { VariantStore } from '../storage';
 
 interface SidebarProps {
@@ -22,6 +22,9 @@ interface SidebarProps {
   targets: GradeTargets;
   onUpdateTarget: (grade: number, value: number) => void;
   onResetTargets: () => void;
+  passColors: PassColors;
+  onUpdateColor: (passType: string, color: string) => void;
+  onResetColors: () => void;
 }
 
 const VIEWS = [
@@ -60,6 +63,9 @@ export default function Sidebar({
   targets,
   onUpdateTarget,
   onResetTargets,
+  passColors,
+  onUpdateColor,
+  onResetColors,
 }: SidebarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importError, setImportError] = useState<string | null>(null);
@@ -289,6 +295,34 @@ export default function Sidebar({
         >
           <span>{String.fromCodePoint(0x1F504)}</span>
           <span>Återställ Lgr22</span>
+        </button>
+      </div>
+
+      {/* ── FÄRGER section ──────────────────────────────────── */}
+      <div className="mb-6">
+        <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+          Färger
+        </h2>
+        <div className="space-y-0.5">
+          {PASS_TYPES.map((pt) => (
+            <div key={pt.value} className="flex items-center gap-2 py-1">
+              <input
+                type="color"
+                value={passColors[pt.value]}
+                onChange={(e) => onUpdateColor(pt.value, e.target.value)}
+                className="w-6 h-6 rounded cursor-pointer border border-gray-200"
+                style={{ padding: 0 }}
+              />
+              <span className="text-xs text-gray-600">{pt.label}</span>
+            </div>
+          ))}
+        </div>
+        <button
+          onClick={onResetColors}
+          className="mt-2 flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium border border-gray-300 text-gray-600 hover:bg-gray-50 transition-colors w-full justify-center"
+        >
+          <span>{String.fromCodePoint(0x1F504)}</span>
+          <span>Återställ färger</span>
         </button>
       </div>
 

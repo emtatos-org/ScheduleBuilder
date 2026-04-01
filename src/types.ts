@@ -24,3 +24,5 @@ export interface PassTypeConfig {
 }
 
 export type GradeTargets = Record<number, number>; // grade → min/vecka
+
+export type PassColors = Record<PassType, string>; // passtyp → hex-färg
