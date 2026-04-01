@@ -15,6 +15,7 @@ interface SidebarProps {
   variantStore: VariantStore;
   onSaveAsNewVariant: () => void;
   onResetV11: () => void;
+  onLoadV12: () => void;
   onLoadVariant: (id: string) => void;
   onDeleteVariant: (id: string) => void;
   onRenameVariant: (id: string, name: string) => void;
@@ -52,6 +53,7 @@ export default function Sidebar({
   variantStore,
   onSaveAsNewVariant,
   onResetV11,
+  onLoadV12,
   onLoadVariant,
   onDeleteVariant,
   onRenameVariant,
@@ -201,6 +203,14 @@ export default function Sidebar({
             className="flex-1 px-2 py-1.5 rounded text-xs font-medium border border-gray-300 text-gray-600 hover:bg-gray-50 transition-colors"
           >
             Aterstall v11
+          </button>
+        </div>
+        <div className="mb-2">
+          <button
+            onClick={onLoadV12}
+            className="w-full px-2 py-1.5 rounded text-xs font-medium border border-purple-400 text-purple-700 hover:bg-purple-50 transition-colors"
+          >
+            {String.fromCodePoint(0x1F4CB)} Ladda v12 (rullande lunch)
           </button>
         </div>
 

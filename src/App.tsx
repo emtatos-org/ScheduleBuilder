@@ -7,6 +7,7 @@ import AddPassModal from './components/AddPassModal';
 import StatisticsView from './components/StatisticsView';
 import ParallelView from './components/ParallelView';
 import { createDefaultSchedule } from './data/defaultSchedule';
+import { createV12Schedule } from './data/v12Schedule';
 import { loadSchedule, saveVariants, loadVariants } from './storage';
 import type { ScheduleVariant, VariantStore } from './storage';
 import { validateSchedule } from './validation';
@@ -215,6 +216,34 @@ function App() {
     clearHistory();
   };
 
+  const handleLoadV12 = () => {
+    if (!confirm('Ladda v12-schema med rullande lunch? Nuvarande schema ers\u00e4tts.')) return;
+
+    const v12Sched = createV12Schedule();
+    const now = new Date().toISOString();
+    const newVariant: ScheduleVariant = {
+      id: crypto.randomUUID(),
+      name: 'v12 rullande lunch',
+      schedule: v12Sched,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    let variants = [...variantStore.variants, newVariant];
+    if (variants.length > 10) {
+      variants = variants.slice(variants.length - 10);
+    }
+
+    const updated: VariantStore = {
+      activeVariantId: newVariant.id,
+      variants,
+    };
+    setVariantStore(updated);
+    saveVariants(updated);
+    setScheduleDirect(v12Sched);
+    clearHistory();
+  };
+
   const handleLoadVariant = (variantId: string) => {
     if (variantId === variantStore.activeVariantId) return;
     if (!confirm('Vill du byta till denna variant? Undo-historiken rensas.')) return;
@@ -321,6 +350,7 @@ function App() {
           variantStore={variantStore}
           onSaveAsNewVariant={handleSaveAsNewVariant}
           onResetV11={handleResetV11}
+          onLoadV12={handleLoadV12}
           onLoadVariant={handleLoadVariant}
           onDeleteVariant={handleDeleteVariant}
           onRenameVariant={handleRenameVariant}
