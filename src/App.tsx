@@ -12,7 +12,7 @@ import { loadSchedule, saveVariants, loadVariants } from './storage';
 import type { ScheduleVariant, VariantStore } from './storage';
 import { validateSchedule } from './validation';
 import { useScheduleHistory } from './hooks/useScheduleHistory';
-import type { DayKey, FullSchedule, SchedulePass, GradeTargets, PassColors, WeekKey } from './types';
+import type { DayKey, FullSchedule, SchedulePass, GradeTargets, PassColors, WeekKey, CustomPassType } from './types';
 
 interface EditingPass {
   cls: string;
@@ -99,6 +99,50 @@ function App() {
 
   const handleResetColors = () => {
     setPassColors({ ...DEFAULT_PASS_COLORS });
+  };
+
+  /* ── Custom pass types ─────────────────────────────────────── */
+
+  const [customTypes, setCustomTypes] = useState<CustomPassType[]>(() => {
+    const saved = localStorage.getItem('schedulebuilder-custom-types');
+    if (saved) try { return JSON.parse(saved); } catch { /* ignore */ }
+    return [];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('schedulebuilder-custom-types', JSON.stringify(customTypes));
+  }, [customTypes]);
+
+  const handleAddCustomType = (ct: CustomPassType) => {
+    setCustomTypes(prev => [...prev, ct]);
+  };
+
+  const handleDeleteCustomType = (value: string) => {
+    // Convert all passes using this type back to 'lektion'
+    const next: FullSchedule = JSON.parse(JSON.stringify(schedule));
+    for (const cls of Object.keys(next)) {
+      for (const wk of ['A', 'B'] as const) {
+        for (const dk of Object.keys(next[cls][wk]) as DayKey[]) {
+          next[cls][wk][dk] = next[cls][wk][dk].map(p =>
+            p.type === value ? { ...p, type: 'lektion' } : p
+          );
+        }
+      }
+    }
+    updateSchedule(next);
+    setCustomTypes(prev => prev.filter(ct => ct.value !== value));
+    // Remove color entry if stored
+    setPassColors(prev => {
+      const copy = { ...prev };
+      delete copy[value];
+      return copy;
+    });
+  };
+
+  const handleUpdateCustomTypeColor = (value: string, color: string) => {
+    setCustomTypes(prev => prev.map(ct =>
+      ct.value === value ? { ...ct, color } : ct
+    ));
   };
 
   // Auto-save schedule changes to the active variant
@@ -405,6 +449,10 @@ function App() {
           passColors={passColors}
           onUpdateColor={handleUpdateColor}
           onResetColors={handleResetColors}
+          customTypes={customTypes}
+          onAddCustomType={handleAddCustomType}
+          onDeleteCustomType={handleDeleteCustomType}
+          onUpdateCustomTypeColor={handleUpdateCustomTypeColor}
         />
       </div>
 
@@ -438,7 +486,7 @@ function App() {
             </div>
 
             {selectedClasses.map(cls => {
-              const result = validateSchedule(schedule, cls, targets, activeWeek);
+              const result = validateSchedule(schedule, cls, targets, activeWeek, customTypes);
               return (
                 <div key={cls}>
                   <h2 className="text-lg font-bold text-gray-800 mb-3">Åk {cls}</h2>
@@ -473,6 +521,7 @@ function App() {
                   <ScheduleGrid
                     schedule={schedule[cls][activeWeek]}
                     passColors={passColors}
+                    customTypes={customTypes}
                     onClickPass={(pass) => {
                       const dk = findDayForPass(cls, pass.id);
                       if (dk) setEditingPass({ cls, dayKey: dk, pass });
@@ -491,6 +540,7 @@ function App() {
             schedule={schedule}
             selectedClasses={selectedClasses}
             targets={targets}
+            customTypes={customTypes}
           />
         )}
         {activeView === 'parallell' && (
@@ -498,6 +548,7 @@ function App() {
             schedule={schedule}
             selectedClasses={selectedClasses}
             passColors={passColors}
+            customTypes={customTypes}
             onClickPass={(cls, dayKey, pass) => {
               setEditingPass({ cls, dayKey, pass });
             }}
@@ -515,6 +566,7 @@ function App() {
           onSave={handleSavePass}
           onDelete={handleDeletePass}
           onClose={() => setEditingPass(null)}
+          customTypes={customTypes}
         />
       )}
 
@@ -524,6 +576,7 @@ function App() {
           dayKey={addingPass.dayKey}
           onAdd={handleAddPass}
           onClose={() => setAddingPass(null)}
+          customTypes={customTypes}
         />
       )}
     </div>

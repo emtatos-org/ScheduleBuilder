@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { CLASSES, DEFAULT_LGR22_TARGETS, PASS_TYPES } from '../constants';
-import type { FullSchedule, GradeTargets, PassColors, WeekKey } from '../types';
+import type { FullSchedule, GradeTargets, PassColors, WeekKey, CustomPassType } from '../types';
+import { getPassLabel } from '../utils';
 import { migrateSchedule } from '../types';
 import type { VariantStore } from '../storage';
 
@@ -26,6 +27,10 @@ interface SidebarProps {
   passColors: PassColors;
   onUpdateColor: (passType: string, color: string) => void;
   onResetColors: () => void;
+  customTypes: CustomPassType[];
+  onAddCustomType: (ct: CustomPassType) => void;
+  onDeleteCustomType: (value: string) => void;
+  onUpdateCustomTypeColor: (value: string, color: string) => void;
 }
 
 const VIEWS = [
@@ -67,11 +72,20 @@ export default function Sidebar({
   passColors,
   onUpdateColor,
   onResetColors,
+  customTypes,
+  onAddCustomType,
+  onDeleteCustomType,
+  onUpdateCustomTypeColor,
 }: SidebarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const [editingVariantId, setEditingVariantId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
+  const [showAddCustomType, setShowAddCustomType] = useState(false);
+  const [newTypeName, setNewTypeName] = useState('');
+  const [newTypeColor, setNewTypeColor] = useState('#F59E0B');
+  const [newTypeIsTeaching, setNewTypeIsTeaching] = useState(true);
+  const [addTypeError, setAddTypeError] = useState<string | null>(null);
 
   const handleSaveJSON = () => {
     const blob = new Blob([JSON.stringify(schedule, null, 2)], { type: 'application/json' });
@@ -128,7 +142,7 @@ export default function Sidebar({
               cls,
               weekKey,
               dayLabels[dayKey] || dayKey,
-              p.type,
+              getPassLabel(p.type, customTypes),
               `${String(startH).padStart(2, '0')}:${String(startM).padStart(2, '0')}`,
               `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`,
               String(p.duration),
@@ -323,6 +337,123 @@ export default function Sidebar({
             </div>
           ))}
         </div>
+
+        {/* ── Egna ämnen ── */}
+        {customTypes.length > 0 && (
+          <>
+            <div className="mt-3 mb-1 border-t border-gray-200 pt-2">
+              <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Egna ämnen</span>
+            </div>
+            <div className="space-y-0.5">
+              {customTypes.map((ct) => (
+                <div key={ct.value} className="flex items-center gap-2 py-1">
+                  <input
+                    type="color"
+                    value={ct.color}
+                    onChange={(e) => onUpdateCustomTypeColor(ct.value, e.target.value)}
+                    className="w-6 h-6 rounded cursor-pointer border border-gray-200"
+                    style={{ padding: 0 }}
+                  />
+                  <span className="text-xs text-gray-600 flex-1 truncate">{ct.label}</span>
+                  <button
+                    onClick={() => {
+                      if (confirm(`Ta bort ämnestypen '${ct.label}'? Pass som använder den ändras till 'Lektion'.`)) {
+                        onDeleteCustomType(ct.value);
+                      }
+                    }}
+                    className="text-red-400 hover:text-red-600 text-xs shrink-0"
+                    title="Ta bort"
+                  >
+                    {String.fromCodePoint(0x1F5D1)}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* Add custom type button / form */}
+        {showAddCustomType ? (
+          <div className="mt-2 p-2 border border-gray-200 rounded-lg bg-gray-50 space-y-2">
+            <div>
+              <input
+                type="text"
+                placeholder="Namn, t.ex. Idrott"
+                value={newTypeName}
+                onChange={(e) => { setNewTypeName(e.target.value); setAddTypeError(null); }}
+                className="w-full text-xs border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                autoFocus
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-gray-500">Färg:</label>
+              <input
+                type="color"
+                value={newTypeColor}
+                onChange={(e) => setNewTypeColor(e.target.value)}
+                className="w-6 h-6 rounded cursor-pointer border border-gray-200"
+                style={{ padding: 0 }}
+              />
+              <label className="flex items-center gap-1 text-xs text-gray-600 ml-auto cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={newTypeIsTeaching}
+                  onChange={(e) => setNewTypeIsTeaching(e.target.checked)}
+                  className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                Lärartid
+              </label>
+            </div>
+            {addTypeError && (
+              <p className="text-[10px] text-red-600">{addTypeError}</p>
+            )}
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  const trimmed = newTypeName.trim();
+                  if (!trimmed) {
+                    setAddTypeError('Namn får inte vara tomt.');
+                    return;
+                  }
+                  const id = trimmed.toLowerCase().replace(/[^a-zåäö0-9]/g, '');
+                  if (!id) {
+                    setAddTypeError('Ogiltigt namn.');
+                    return;
+                  }
+                  const allValues = [...PASS_TYPES.map(p => p.value), ...customTypes.map(ct => ct.value)];
+                  if (allValues.includes(id)) {
+                    setAddTypeError('Denna typ finns redan.');
+                    return;
+                  }
+                  onAddCustomType({ value: id, label: trimmed, color: newTypeColor, isTeaching: newTypeIsTeaching });
+                  setNewTypeName('');
+                  setNewTypeColor('#F59E0B');
+                  setNewTypeIsTeaching(true);
+                  setAddTypeError(null);
+                  setShowAddCustomType(false);
+                }}
+                className="flex-1 px-2 py-1.5 rounded text-xs font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+              >
+                Lägg till
+              </button>
+              <button
+                onClick={() => { setShowAddCustomType(false); setAddTypeError(null); setNewTypeName(''); }}
+                className="flex-1 px-2 py-1.5 rounded text-xs font-medium border border-gray-300 text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                Avbryt
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={() => setShowAddCustomType(true)}
+            className="mt-2 flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium border border-dashed border-blue-400 text-blue-600 hover:bg-blue-50 transition-colors w-full justify-center"
+          >
+            <span>+</span>
+            <span>Lägg till ämne</span>
+          </button>
+        )}
+
         <button
           onClick={onResetColors}
           className="mt-2 flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium border border-gray-300 text-gray-600 hover:bg-gray-50 transition-colors w-full justify-center"

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { FullSchedule, GradeTargets, WeekKey } from '../types';
+import type { FullSchedule, GradeTargets, WeekKey, CustomPassType } from '../types';
 import { validateSchedule } from '../validation';
 import type { ValidationResult } from '../validation';
 import { DAYS } from '../constants';
@@ -9,6 +9,7 @@ interface StatisticsViewProps {
   schedule: FullSchedule;
   selectedClasses: string[];
   targets: GradeTargets;
+  customTypes: CustomPassType[];
 }
 
 /* PDF-referensvärden per årskurs (lärartid h/v) */
@@ -182,7 +183,7 @@ function WeekStatsSection({
   );
 }
 
-export default function StatisticsView({ schedule, selectedClasses, targets }: StatisticsViewProps) {
+export default function StatisticsView({ schedule, selectedClasses, targets, customTypes }: StatisticsViewProps) {
   const [activeTab, setActiveTab] = useState<StatTab>('snitt');
 
   return (
@@ -190,8 +191,8 @@ export default function StatisticsView({ schedule, selectedClasses, targets }: S
       {selectedClasses.map((cls) => {
         const grade = getGrade(cls);
         const target = targets[grade] || 0;
-        const resultA = validateSchedule(schedule, cls, targets, 'A');
-        const resultB = validateSchedule(schedule, cls, targets, 'B');
+        const resultA = validateSchedule(schedule, cls, targets, 'A', customTypes);
+        const resultB = validateSchedule(schedule, cls, targets, 'B', customTypes);
 
         // Average results for Snitt
         const avgGuaranteed = Math.round((resultA.weeklyGuaranteed + resultB.weeklyGuaranteed) / 2);

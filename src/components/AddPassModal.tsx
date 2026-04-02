@@ -1,19 +1,19 @@
 import { useState } from 'react';
 import { PASS_TYPES } from '../constants';
 import { generateTimeOptions, minutesToTime, timeToMinutes } from '../utils';
-import type { SchedulePass, PassType, DayKey } from '../types';
+import type { SchedulePass, DayKey, CustomPassType } from '../types';
 
 interface AddPassModalProps {
   dayKey: DayKey;
   onAdd: (dayKey: DayKey, pass: Omit<SchedulePass, 'id'>) => void;
   onClose: () => void;
+  customTypes: CustomPassType[];
 }
 
 const DURATION_PRESETS = [20, 30, 45, 60, 90];
-const DEFAULT_LABELS = new Set(PASS_TYPES.map(pt => pt.label));
-
-export default function AddPassModal({ dayKey, onAdd, onClose }: AddPassModalProps) {
-  const [type, setType] = useState<PassType>('lektion');
+export default function AddPassModal({ dayKey, onAdd, onClose, customTypes }: AddPassModalProps) {
+  const allDefaultLabels = new Set([...PASS_TYPES.map(pt => pt.label), ...customTypes.map(ct => ct.label)]);
+  const [type, setType] = useState<string>('lektion');
   const [start, setStart] = useState(timeToMinutes(9, 0));
   const [duration, setDuration] = useState(60);
   const [customDuration, setCustomDuration] = useState('');
@@ -22,11 +22,13 @@ export default function AddPassModal({ dayKey, onAdd, onClose }: AddPassModalPro
 
   const timeOptions = generateTimeOptions();
 
-  const handleTypeChange = (newType: PassType) => {
-    const newDefault = PASS_TYPES.find(p => p.value === newType)?.label || '';
+  const handleTypeChange = (newType: string) => {
+    const builtinMatch = PASS_TYPES.find(p => p.value === newType);
+    const customMatch = customTypes.find(ct => ct.value === newType);
+    const newDefault = builtinMatch?.label || customMatch?.label || '';
 
     // Om nuvarande etikett är ett default-namn (för VILKEN typ som helst) eller tom → byt
-    if (label === '' || DEFAULT_LABELS.has(label)) {
+    if (label === '' || allDefaultLabels.has(label)) {
       setLabel(newDefault);
     }
     // Annars (användaren har skrivit t.ex. "Matematik") → behåll
@@ -39,7 +41,7 @@ export default function AddPassModal({ dayKey, onAdd, onClose }: AddPassModalPro
       type,
       start,
       duration,
-      label: label || PASS_TYPES.find(p => p.value === type)?.label || type,
+      label: label || PASS_TYPES.find(p => p.value === type)?.label || customTypes.find(ct => ct.value === type)?.label || type,
       guaranteed,
     });
   };
@@ -68,12 +70,21 @@ export default function AddPassModal({ dayKey, onAdd, onClose }: AddPassModalPro
           <label className="block text-sm font-medium text-gray-600 mb-1">Typ</label>
           <select
             value={type}
-            onChange={(e) => handleTypeChange(e.target.value as PassType)}
+            onChange={(e) => handleTypeChange(e.target.value)}
             className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
           >
-            {PASS_TYPES.map((pt) => (
-              <option key={pt.value} value={pt.value}>{pt.label}</option>
-            ))}
+            <optgroup label="Standard">
+              {PASS_TYPES.map((pt) => (
+                <option key={pt.value} value={pt.value}>{pt.label}</option>
+              ))}
+            </optgroup>
+            {customTypes.length > 0 && (
+              <optgroup label="Egna ämnen">
+                {customTypes.map((ct) => (
+                  <option key={ct.value} value={ct.value}>{ct.label}</option>
+                ))}
+              </optgroup>
+            )}
           </select>
         </div>
 

@@ -1,6 +1,6 @@
 import { DAYS, START_HOUR, END_HOUR } from '../constants';
-import type { ClassSchedule, DayKey, SchedulePass, PassColors } from '../types';
-import { minutesToTime } from '../utils';
+import type { ClassSchedule, DayKey, SchedulePass, PassColors, CustomPassType } from '../types';
+import { getPassColor, minutesToTime } from '../utils';
 
 const HOUR_HEIGHT = 70;
 const TOTAL_HOURS = END_HOUR - START_HOUR;
@@ -11,6 +11,7 @@ const TOTAL_MIN = TOTAL_HOURS * 60;
 interface ScheduleGridProps {
   schedule: ClassSchedule;
   passColors: PassColors;
+  customTypes: CustomPassType[];
   onClickPass: (pass: SchedulePass) => void;
   onClickSlot: (day: DayKey) => void;
 }
@@ -59,6 +60,7 @@ function PassBlock({
 export default function ScheduleGrid({
   schedule,
   passColors,
+  customTypes,
   onClickPass,
   onClickSlot,
 }: ScheduleGridProps) {
@@ -126,7 +128,7 @@ export default function ScheduleGrid({
                   <PassBlock
                     key={pass.id}
                     pass={pass}
-                    color={passColors[pass.type]}
+                    color={getPassColor(pass.type, passColors, customTypes)}
                     onClick={() => onClickPass(pass)}
                   />
                 ))}
