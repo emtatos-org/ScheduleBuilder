@@ -1,6 +1,15 @@
-export type PassType = 
-  | 'lektion' | 'ph-tid' | 'basgrupp' | 'lunch' 
-  | 'rast' | 'em-bg' | 'bro' | 'ovrigt';
+// Built-in pass types (cannot be removed)
+export type BuiltinPassType = 'lektion' | 'ph-tid' | 'basgrupp' | 'lunch' | 'rast' | 'em-bg' | 'bro' | 'ovrigt';
+
+// PassType is a string to support custom types
+export type PassType = string;
+
+export interface CustomPassType {
+  value: string;       // unique ID, e.g. "idrott", "musik" (lowercase, no spaces)
+  label: string;       // Display name, e.g. "Idrott", "Musik"
+  color: string;       // Hex color, e.g. "#F59E0B"
+  isTeaching: boolean; // Counts as teacher time? (default: true)
+}
 
 export interface SchedulePass {
   id: string;
@@ -22,14 +31,14 @@ export type WeekSchedule = Record<WeekKey, ClassSchedule>;
 export type FullSchedule = Record<string, WeekSchedule>;
 
 export interface PassTypeConfig {
-  value: PassType;
+  value: string;
   label: string;
   color: string;  // tailwind-kompatibel hex
 }
 
 export type GradeTargets = Record<number, number>; // grade → min/vecka
 
-export type PassColors = Record<PassType, string>; // passtyp → hex-färg
+export type PassColors = Record<string, string>; // passtyp → hex-färg
 
 /** Migrate old single-week data to the new two-week structure */
 export function migrateSchedule(data: Record<string, unknown>): FullSchedule {

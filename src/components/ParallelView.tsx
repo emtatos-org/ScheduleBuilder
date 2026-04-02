@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { DAYS, CLASSES, START_HOUR, END_HOUR } from '../constants';
-import type { FullSchedule, DayKey, SchedulePass, PassColors, WeekKey, ClassSchedule } from '../types';
-import { minutesToTime } from '../utils';
+import type { FullSchedule, DayKey, SchedulePass, PassColors, WeekKey, ClassSchedule, CustomPassType } from '../types';
+import { getPassColor, minutesToTime } from '../utils';
 
 const HOUR_HEIGHT = 70;
 const TOTAL_HOURS = END_HOUR - START_HOUR;
@@ -15,6 +15,7 @@ interface ParallelViewProps {
   schedule: FullSchedule;
   selectedClasses: string[];
   passColors: PassColors;
+  customTypes: CustomPassType[];
   onClickPass?: (cls: string, dayKey: DayKey, pass: SchedulePass) => void;
   onClickSlot?: (cls: string, dayKey: DayKey) => void;
 }
@@ -70,11 +71,12 @@ interface ParallelPassBlockProps {
   cls: string;
   dayKey: DayKey;
   passColors: PassColors;
+  customTypes: CustomPassType[];
   onClickPass?: (cls: string, dayKey: DayKey, pass: SchedulePass) => void;
 }
 
-function ParallelPassBlock({ pass, cls, dayKey, passColors, onClickPass }: ParallelPassBlockProps) {
-  const color = passColors[pass.type];
+function ParallelPassBlock({ pass, cls, dayKey, passColors, customTypes, onClickPass }: ParallelPassBlockProps) {
+  const color = getPassColor(pass.type, passColors, customTypes);
   const top = ((pass.start - START_MIN) / TOTAL_MIN) * TOTAL_HEIGHT;
   const height = (pass.duration / TOTAL_MIN) * TOTAL_HEIGHT;
   const showTime = height >= 32;
@@ -136,7 +138,7 @@ function ParallelPassBlock({ pass, cls, dayKey, passColors, onClickPass }: Paral
   );
 }
 
-export default function ParallelView({ schedule, selectedClasses, passColors, onClickPass, onClickSlot }: ParallelViewProps) {
+export default function ParallelView({ schedule, selectedClasses, passColors, customTypes, onClickPass, onClickSlot }: ParallelViewProps) {
   const [selectedDay, setSelectedDay] = useState<DayKey>('mon');
   const [activeWeek, setActiveWeek] = useState<WeekKey>('A');
 
@@ -260,6 +262,7 @@ export default function ParallelView({ schedule, selectedClasses, passColors, on
                       cls={cls}
                       dayKey={selectedDay}
                       passColors={passColors}
+                      customTypes={customTypes}
                       onClickPass={onClickPass}
                     />
                   ))}

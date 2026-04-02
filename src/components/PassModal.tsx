@@ -1,20 +1,20 @@
 import { useState } from 'react';
 import { PASS_TYPES } from '../constants';
 import { generateTimeOptions, minutesToTime } from '../utils';
-import type { SchedulePass, PassType } from '../types';
+import type { SchedulePass, CustomPassType } from '../types';
 
 interface PassModalProps {
   pass: SchedulePass;
   onSave: (updated: SchedulePass) => void;
   onDelete: (id: string) => void;
   onClose: () => void;
+  customTypes: CustomPassType[];
 }
 
 const DURATION_PRESETS = [20, 30, 45, 60, 90];
-const DEFAULT_LABELS = new Set(PASS_TYPES.map(pt => pt.label));
-
-export default function PassModal({ pass, onSave, onDelete, onClose }: PassModalProps) {
-  const [type, setType] = useState<PassType>(pass.type);
+export default function PassModal({ pass, onSave, onDelete, onClose, customTypes }: PassModalProps) {
+  const allDefaultLabels = new Set([...PASS_TYPES.map(pt => pt.label), ...customTypes.map(ct => ct.label)]);
+  const [type, setType] = useState<string>(pass.type);
   const [start, setStart] = useState(pass.start);
   const [duration, setDuration] = useState(pass.duration);
   const [customDuration, setCustomDuration] = useState('');
@@ -23,11 +23,13 @@ export default function PassModal({ pass, onSave, onDelete, onClose }: PassModal
 
   const timeOptions = generateTimeOptions();
 
-  const handleTypeChange = (newType: PassType) => {
-    const newDefault = PASS_TYPES.find(p => p.value === newType)?.label || '';
+  const handleTypeChange = (newType: string) => {
+    const builtinMatch = PASS_TYPES.find(p => p.value === newType);
+    const customMatch = customTypes.find(ct => ct.value === newType);
+    const newDefault = builtinMatch?.label || customMatch?.label || '';
 
     // Om nuvarande etikett är ett default-namn (för VILKEN typ som helst) eller tom → byt
-    if (label === '' || DEFAULT_LABELS.has(label)) {
+    if (label === '' || allDefaultLabels.has(label)) {
       setLabel(newDefault);
     }
     // Annars (användaren har skrivit t.ex. "Matematik") → behåll
@@ -70,12 +72,21 @@ export default function PassModal({ pass, onSave, onDelete, onClose }: PassModal
           <label className="block text-sm font-medium text-gray-600 mb-1">Typ</label>
           <select
             value={type}
-            onChange={(e) => handleTypeChange(e.target.value as PassType)}
+            onChange={(e) => handleTypeChange(e.target.value)}
             className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            {PASS_TYPES.map((pt) => (
-              <option key={pt.value} value={pt.value}>{pt.label}</option>
-            ))}
+            <optgroup label="Standard">
+              {PASS_TYPES.map((pt) => (
+                <option key={pt.value} value={pt.value}>{pt.label}</option>
+              ))}
+            </optgroup>
+            {customTypes.length > 0 && (
+              <optgroup label="Egna ämnen">
+                {customTypes.map((ct) => (
+                  <option key={ct.value} value={ct.value}>{ct.label}</option>
+                ))}
+              </optgroup>
+            )}
           </select>
         </div>
 

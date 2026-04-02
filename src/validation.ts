@@ -1,4 +1,4 @@
-import type { ClassSchedule, FullSchedule, SchedulePass, GradeTargets, WeekKey } from './types';
+import type { ClassSchedule, FullSchedule, SchedulePass, GradeTargets, WeekKey, CustomPassType } from './types';
 import { MAX_TEACHER_HOURS, DAYS, DEFAULT_LGR22_TARGETS } from './constants';
 import { getGrade, minutesToTime } from './utils';
 
@@ -14,7 +14,13 @@ export interface ValidationResult {
   weeklyPh: number;
 }
 
-const TEACHER_TYPES = new Set(['lektion', 'basgrupp', 'em-bg', 'bro', 'ph-tid']);
+const BUILTIN_TEACHER_TYPES = new Set(['lektion', 'basgrupp', 'em-bg', 'bro', 'ph-tid']);
+
+function isTeacherType(type: string, customTypes: CustomPassType[]): boolean {
+  if (BUILTIN_TEACHER_TYPES.has(type)) return true;
+  const custom = customTypes.find(ct => ct.value === type);
+  return custom?.isTeaching ?? false;
+}
 
 /** Validate a single ClassSchedule (one week of one class). Optional weekPrefix for warnings. */
 export function validateClassSchedule(
@@ -22,6 +28,7 @@ export function validateClassSchedule(
   cls: string,
   targets: GradeTargets = DEFAULT_LGR22_TARGETS,
   weekPrefix?: string,
+  customTypes: CustomPassType[] = [],
 ): ValidationResult {
   if (!classSchedule) {
     return { warnings: [], weeklyGuaranteed: 0, weeklyTeacher: 0, weeklyPh: 0 };
@@ -41,7 +48,7 @@ export function validateClassSchedule(
       if (p.guaranteed) {
         weeklyGuaranteed += p.duration;
       }
-      if (TEACHER_TYPES.has(p.type)) {
+      if (isTeacherType(p.type, customTypes)) {
         weeklyTeacher += p.duration;
       }
       if (p.type === 'ph-tid') {
@@ -130,6 +137,7 @@ export function validateSchedule(
   cls: string,
   targets: GradeTargets = DEFAULT_LGR22_TARGETS,
   week?: WeekKey,
+  customTypes: CustomPassType[] = [],
 ): ValidationResult {
   const weekSchedule = schedule[cls];
   if (!weekSchedule) {
@@ -138,9 +146,11 @@ export function validateSchedule(
 
   const weekKey = week ?? 'A';
   const classSchedule = weekSchedule[weekKey];
-  return validateClassSchedule(classSchedule, cls, targets, week ? `Vecka ${week}` : undefined);
+  return validateClassSchedule(classSchedule, cls, targets, week ? `Vecka ${week}` : undefined, customTypes);
 }
 
 function isTeachingPass(p: SchedulePass): boolean {
   return p.type !== 'rast' && p.type !== 'lunch';
 }
+
+export { isTeacherType };
