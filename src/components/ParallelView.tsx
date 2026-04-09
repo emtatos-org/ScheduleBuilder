@@ -85,7 +85,6 @@ function ParallelPassBlock({ pass, cls, dayKey, passColors, customTypes, onClick
   const isHighParallel = pass.parallelCount >= 4;
   const isMediumParallel = pass.parallelCount >= 2 && pass.parallelCount < 4;
 
-  const bgColor = isHighParallel ? '#FEE2E2' : `${color}18`;
   const borderColor = isHighParallel ? '#EF4444' : color;
 
   const tooltipText = pass.parallelCount >= 2
@@ -102,23 +101,25 @@ function ParallelPassBlock({ pass, cls, dayKey, passColors, customTypes, onClick
       style={{
         top: `${top}px`,
         height: `${height}px`,
-        backgroundColor: bgColor,
-        borderLeft: `3px solid ${borderColor}`,
+        backgroundColor: isHighParallel ? '#FEE2E2' : `${color}30`,
+        border: `1px solid ${isHighParallel ? '#EF444466' : `${color}66`}`,
+        borderLeft: `4px solid ${borderColor}`,
+        color: '#1E293B',
       }}
       title={tooltipText}
       onClick={(e) => { e.stopPropagation(); onClickPass?.(cls, dayKey, pass); }}
     >
       <div className="px-1.5 py-0.5 relative">
-        <p
-          className="text-[10px] font-bold truncate"
-          style={{ color }}
+        <span
+          style={{ fontWeight: 700, color: '#1E293B', fontSize: 11 }}
+          className="block truncate"
         >
           {pass.label}
-        </p>
+        </span>
         {showTime && (
-          <p className="text-[9px] text-gray-500">
+          <span style={{ fontSize: 10, color: '#475569', fontWeight: 500 }} className="block">
             {minutesToTime(pass.start)}&ndash;{minutesToTime(pass.start + pass.duration)}
-          </p>
+          </span>
         )}
         {/* Parallelism badge */}
         {badgeText && (

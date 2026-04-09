@@ -11,14 +11,14 @@ export const DAYS: { key: DayKey; label: string }[] = [
 export const CLASSES = ['4A', '5A', '6A', '7A', '8A', '9A'];
 
 export const PASS_TYPES: PassTypeConfig[] = [
-  { value: 'lektion',  label: 'Lektion',       color: '#2563EB' },
-  { value: 'ph-tid',   label: 'ph-tid morgon',  color: '#60A5FA' },
-  { value: 'basgrupp', label: 'Basgrupp',       color: '#16A34A' },
-  { value: 'lunch',    label: 'Lunch',          color: '#EA580C' },
-  { value: 'rast',     label: 'Rast',           color: '#F87171' },
-  { value: 'em-bg',    label: 'em-bg',          color: '#15803D' },
-  { value: 'bro',      label: 'Bro-pass',       color: '#7C3AED' },
-  { value: 'ovrigt',   label: 'Övrigt',         color: '#94A3B8' },
+  { value: 'lektion',  label: 'Lektion',       color: '#1D4ED8' },
+  { value: 'ph-tid',   label: 'ph-tid morgon',  color: '#2563EB' },
+  { value: 'basgrupp', label: 'Basgrupp',       color: '#15803D' },
+  { value: 'lunch',    label: 'Lunch',          color: '#C2410C' },
+  { value: 'rast',     label: 'Rast',           color: '#BE123C' },
+  { value: 'em-bg',    label: 'em-bg',          color: '#166534' },
+  { value: 'bro',      label: 'Bro-pass',       color: '#6D28D9' },
+  { value: 'ovrigt',   label: 'Övrigt',         color: '#64748B' },
 ];
 
 export const START_HOUR = 8;
@@ -44,12 +44,12 @@ export const DEFAULT_RULES: ValidationRules = {
 };
 
 export const DEFAULT_PASS_COLORS: PassColors = {
-  'lektion': '#2563EB',
-  'ph-tid': '#60A5FA',
-  'basgrupp': '#16A34A',
-  'lunch': '#EA580C',
-  'rast': '#F87171',
-  'em-bg': '#15803D',
-  'bro': '#7C3AED',
-  'ovrigt': '#94A3B8',
+  'lektion': '#1D4ED8',
+  'ph-tid': '#2563EB',
+  'basgrupp': '#15803D',
+  'lunch': '#C2410C',
+  'rast': '#BE123C',
+  'em-bg': '#166534',
+  'bro': '#6D28D9',
+  'ovrigt': '#64748B',
 };

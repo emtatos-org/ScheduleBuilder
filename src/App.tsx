@@ -530,7 +530,7 @@ function App() {
                       return (
                         <div className="mb-2">
                           {successMsg && (
-                            <div className="rounded-lg border border-green-300 bg-green-50 text-green-600 p-3 text-xs">
+                            <div className="rounded-lg border border-green-300 bg-green-50 p-3 text-xs" style={{ color: '#166534' }}>
                               {'\u2705'} {successMsg.msg}
                             </div>
                           )}
@@ -552,13 +552,13 @@ function App() {
                         >
                           <div className="flex items-center gap-3 flex-wrap">
                             {warnCount > 0 && (
-                              <span style={{ color: '#B45309' }}>{'\u26A0\uFE0F'} {warnCount} varning{warnCount > 1 ? 'ar' : ''}</span>
+                              <span style={{ color: '#1E293B' }}>{'\u26A0\uFE0F'} {warnCount} varning{warnCount > 1 ? 'ar' : ''}</span>
                             )}
                             {hasErrors && (
                               <span style={{ color: '#DC2626' }}>{'\u26D4'} {errorItems.length} fel</span>
                             )}
                             {successMsg && (
-                              <span style={{ color: '#16A34A' }}>{'\u2705'} {successMsg.msg}</span>
+                              <span style={{ color: '#166534' }}>{'\u2705'} {successMsg.msg}</span>
                             )}
                           </div>
                           {(warnCount > 0 || hasErrors) && !hasErrors && (
