@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { DEFAULT_LGR22_TARGETS, DEFAULT_PASS_COLORS } from './constants';
+import { DEFAULT_LGR22_TARGETS, DEFAULT_PASS_COLORS, DEFAULT_RULES } from './constants';
 import Sidebar from './components/Sidebar';
 import ScheduleGrid from './components/ScheduleGrid';
 import PassModal from './components/PassModal';
@@ -12,7 +12,7 @@ import { loadSchedule, saveVariants, loadVariants } from './storage';
 import type { ScheduleVariant, VariantStore } from './storage';
 import { validateSchedule } from './validation';
 import { useScheduleHistory } from './hooks/useScheduleHistory';
-import type { DayKey, FullSchedule, SchedulePass, GradeTargets, PassColors, WeekKey, CustomPassType } from './types';
+import type { DayKey, FullSchedule, SchedulePass, GradeTargets, PassColors, WeekKey, CustomPassType, ValidationRules } from './types';
 
 interface EditingPass {
   cls: string;
@@ -64,6 +64,7 @@ function App() {
 
   const [editingPass, setEditingPass] = useState<EditingPass | null>(null);
   const [addingPass, setAddingPass] = useState<AddingPass | null>(null);
+  const [warningsExpanded, setWarningsExpanded] = useState<Record<string, boolean>>({});
 
   const [targets, setTargets] = useState<GradeTargets>(() => {
     const saved = localStorage.getItem('schedulebuilder-targets');
@@ -81,6 +82,26 @@ function App() {
 
   const handleResetTargets = () => {
     setTargets({ ...DEFAULT_LGR22_TARGETS });
+  };
+
+  /* ── Validation rules ─────────────────────────────────────── */
+
+  const [rules, setRules] = useState<ValidationRules>(() => {
+    const saved = localStorage.getItem('schedulebuilder-rules');
+    if (saved) try { return JSON.parse(saved); } catch { /* ignore */ }
+    return { ...DEFAULT_RULES };
+  });
+
+  useEffect(() => {
+    localStorage.setItem('schedulebuilder-rules', JSON.stringify(rules));
+  }, [rules]);
+
+  const handleUpdateRule = <K extends keyof ValidationRules>(key: K, update: Partial<ValidationRules[K]>) => {
+    setRules(prev => ({ ...prev, [key]: { ...prev[key], ...update } }));
+  };
+
+  const handleResetRules = () => {
+    setRules({ ...DEFAULT_RULES });
   };
 
   const [passColors, setPassColors] = useState<PassColors>(() => {
@@ -446,6 +467,9 @@ function App() {
           targets={targets}
           onUpdateTarget={handleUpdateTarget}
           onResetTargets={handleResetTargets}
+          rules={rules}
+          onUpdateRule={handleUpdateRule}
+          onResetRules={handleResetRules}
           passColors={passColors}
           onUpdateColor={handleUpdateColor}
           onResetColors={handleResetColors}
@@ -486,38 +510,88 @@ function App() {
             </div>
 
             {selectedClasses.map(cls => {
-              const result = validateSchedule(schedule, cls, targets, activeWeek, customTypes);
+              const result = validateSchedule(schedule, cls, targets, rules, activeWeek, customTypes);
               return (
                 <div key={cls}>
                   <h2 className="text-lg font-bold text-gray-800 mb-3">Åk {cls}</h2>
-                  {/* Validation warnings */}
-                  {result.warnings.length > 0 && (
-                    <div className="mb-2 space-y-1">
-                      {result.warnings.map((w, i) => (
-                        <div
-                          key={i}
-                          className={`rounded-lg border p-3 text-xs ${
-                            w.level === 'error'
-                              ? 'border-red-300 bg-red-50 text-red-600 font-semibold'
-                              : w.level === 'warn'
-                                ? 'border-yellow-300 bg-yellow-50 text-yellow-800'
-                                : w.level === 'success'
-                                  ? 'border-green-300 bg-green-50 text-green-600'
-                                  : 'border-blue-300 bg-blue-50 text-blue-700'
-                          }`}
-                        >
-                          {w.level === 'error'
-                            ? '\u26D4'
-                            : w.level === 'warn'
-                              ? '\u26A0\uFE0F'
-                              : w.level === 'success'
-                                ? '\u2705'
-                                : '\u2139\uFE0F'}{' '}
-                          {w.msg}
+                  {/* Validation warnings – compact collapsible */}
+                  {(() => {
+                    const warnItems = result.warnings.filter(w => w.level === 'warn');
+                    const errorItems = result.warnings.filter(w => w.level === 'error');
+                    const successMsg = result.warnings.find(w => w.level === 'success');
+                    const warnCount = warnItems.length;
+                    const hasErrors = errorItems.length > 0;
+                    const isExpanded = hasErrors || (warningsExpanded[cls] ?? false);
+
+                    if (result.warnings.length === 0) return null;
+
+                    // Only success messages – show green bar, no expand
+                    if (warnCount === 0 && !hasErrors) {
+                      return (
+                        <div className="mb-2">
+                          {successMsg && (
+                            <div className="rounded-lg border border-green-300 bg-green-50 text-green-600 p-3 text-xs">
+                              {'\u2705'} {successMsg.msg}
+                            </div>
+                          )}
                         </div>
-                      ))}
-                    </div>
-                  )}
+                      );
+                    }
+
+                    return (
+                      <div className="mb-2">
+                        {/* Summary row */}
+                        <div
+                          onClick={() => !hasErrors && setWarningsExpanded(prev => ({ ...prev, [cls]: !prev[cls] }))}
+                          className="flex items-center justify-between rounded-lg px-3 py-2 text-sm"
+                          style={{
+                            background: '#F8FAFC',
+                            border: '1px solid #E2E8F0',
+                            cursor: hasErrors ? 'default' : 'pointer',
+                          }}
+                        >
+                          <div className="flex items-center gap-3 flex-wrap">
+                            {warnCount > 0 && (
+                              <span style={{ color: '#B45309' }}>{'\u26A0\uFE0F'} {warnCount} varning{warnCount > 1 ? 'ar' : ''}</span>
+                            )}
+                            {hasErrors && (
+                              <span style={{ color: '#DC2626' }}>{'\u26D4'} {errorItems.length} fel</span>
+                            )}
+                            {successMsg && (
+                              <span style={{ color: '#16A34A' }}>{'\u2705'} {successMsg.msg}</span>
+                            )}
+                          </div>
+                          {(warnCount > 0 || hasErrors) && !hasErrors && (
+                            <span style={{ color: '#94A3B8', fontSize: 11 }}>
+                              {isExpanded ? 'Dölj \u25B2' : 'Visa \u25BC'}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Expandable details */}
+                        {isExpanded && (
+                          <div className="mt-1 space-y-1">
+                            {result.warnings
+                              .filter(w => w.level !== 'success')
+                              .map((w, i) => (
+                                <div
+                                  key={i}
+                                  className={`rounded-lg border p-3 text-xs ${
+                                    w.level === 'error'
+                                      ? 'border-red-300 bg-red-50 text-red-600 font-semibold'
+                                      : w.level === 'warn'
+                                        ? 'border-yellow-300 bg-yellow-50 text-yellow-800'
+                                        : 'border-blue-300 bg-blue-50 text-blue-700'
+                                  }`}
+                                >
+                                  {w.level === 'error' ? '\u26D4' : '\u26A0\uFE0F'} {w.msg}
+                                </div>
+                              ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                   <ScheduleGrid
                     schedule={schedule[cls][activeWeek]}
                     passColors={passColors}
@@ -540,6 +614,7 @@ function App() {
             schedule={schedule}
             selectedClasses={selectedClasses}
             targets={targets}
+            rules={rules}
             customTypes={customTypes}
           />
         )}

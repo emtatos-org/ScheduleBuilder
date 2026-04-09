@@ -1,4 +1,4 @@
-import type { PassTypeConfig, DayKey, GradeTargets, PassColors } from './types';
+import type { PassTypeConfig, DayKey, GradeTargets, PassColors, ValidationRules } from './types';
 
 export const DAYS: { key: DayKey; label: string }[] = [
   { key: 'mon', label: 'Måndag' },
@@ -34,6 +34,14 @@ export const DEFAULT_LGR22_TARGETS: GradeTargets = {
 };
 
 export const MAX_TEACHER_HOURS = 27.5;
+
+export const DEFAULT_RULES: ValidationRules = {
+  minPassDuration: { enabled: true, value: 20 },
+  maxEndTime: { enabled: true, value: 900 },       // 15:00
+  lunchWindow: { enabled: true, start: 630, end: 785 }, // 10:30-13:05
+  maxTeacherHours: { enabled: true, value: 27.5 },
+  minBreakBetween: { enabled: true, value: 5 },
+};
 
 export const DEFAULT_PASS_COLORS: PassColors = {
   'lektion': '#2563EB',
