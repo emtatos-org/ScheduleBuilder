@@ -1,6 +1,14 @@
 // Built-in pass types (cannot be removed)
 export type BuiltinPassType = 'lektion' | 'ph-tid' | 'basgrupp' | 'lunch' | 'rast' | 'em-bg' | 'bro' | 'ovrigt';
 
+export interface ValidationRules {
+  minPassDuration: { enabled: boolean; value: number };
+  maxEndTime: { enabled: boolean; value: number };
+  lunchWindow: { enabled: boolean; start: number; end: number };
+  maxTeacherHours: { enabled: boolean; value: number };
+  minBreakBetween: { enabled: boolean; value: number };
+}
+
 // PassType is a string to support custom types
 export type PassType = string;
 

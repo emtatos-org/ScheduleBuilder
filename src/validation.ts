@@ -1,5 +1,5 @@
-import type { ClassSchedule, FullSchedule, SchedulePass, GradeTargets, WeekKey, CustomPassType } from './types';
-import { MAX_TEACHER_HOURS, DAYS, DEFAULT_LGR22_TARGETS } from './constants';
+import type { ClassSchedule, FullSchedule, SchedulePass, GradeTargets, WeekKey, CustomPassType, ValidationRules } from './types';
+import { DAYS, DEFAULT_LGR22_TARGETS, DEFAULT_RULES } from './constants';
 import { getGrade, minutesToTime } from './utils';
 
 export interface ValidationWarning {
@@ -27,6 +27,7 @@ export function validateClassSchedule(
   classSchedule: ClassSchedule,
   cls: string,
   targets: GradeTargets = DEFAULT_LGR22_TARGETS,
+  rules: ValidationRules = DEFAULT_RULES,
   weekPrefix?: string,
   customTypes: CustomPassType[] = [],
 ): ValidationResult {
@@ -55,20 +56,22 @@ export function validateClassSchedule(
         weeklyPh += p.duration;
       }
 
-      if (p.type !== 'rast' && p.type !== 'lunch' && p.duration < 20) {
+      // Rule 1: Short pass
+      if (rules.minPassDuration.enabled && p.type !== 'rast' && p.type !== 'lunch' && p.duration < rules.minPassDuration.value) {
         warnings.push({
           level: 'warn',
-          msg: `${prefix}${day.label}: "${p.label}" är bara ${p.duration} min (< 20 min)`,
+          msg: `${prefix}${day.label}: "${p.label}" är bara ${p.duration} min (< ${rules.minPassDuration.value} min)`,
         });
       }
 
-      if (p.type === 'lunch') {
+      // Rule 3: Lunch outside window
+      if (rules.lunchWindow.enabled && p.type === 'lunch') {
         const lunchStart = p.start;
         const lunchEnd = p.start + p.duration;
-        if (lunchStart < 630 || lunchEnd > 785) {
+        if (lunchStart < rules.lunchWindow.start || lunchEnd > rules.lunchWindow.end) {
           warnings.push({
             level: 'warn',
-            msg: `${prefix}${day.label}: Lunch ${minutesToTime(lunchStart)}–${minutesToTime(lunchEnd)} ligger utanför 10:30–13:05`,
+            msg: `${prefix}${day.label}: Lunch ${minutesToTime(lunchStart)}–${minutesToTime(lunchEnd)} ligger utanför ${minutesToTime(rules.lunchWindow.start)}–${minutesToTime(rules.lunchWindow.end)}`,
           });
         }
       }
@@ -78,7 +81,8 @@ export function validateClassSchedule(
       const curr = sorted[i];
       const next = sorted[i + 1];
       const gap = next.start - (curr.start + curr.duration);
-      if (gap > 0 && gap < 5 && isTeachingPass(curr) && isTeachingPass(next)) {
+      // Rule 2: Short break
+      if (rules.minBreakBetween.enabled && gap > 0 && gap < rules.minBreakBetween.value && isTeachingPass(curr) && isTeachingPass(next)) {
         warnings.push({
           level: 'warn',
           msg: `${prefix}${day.label}: Bara ${gap} min rast mellan "${curr.label}" och "${next.label}"`,
@@ -89,20 +93,22 @@ export function validateClassSchedule(
     if (sorted.length > 0) {
       const lastPass = sorted[sorted.length - 1];
       const endTime = lastPass.start + lastPass.duration;
-      if (endTime > 900) {
+      // Rule 5: Late end time
+      if (rules.maxEndTime.enabled && endTime > rules.maxEndTime.value) {
         warnings.push({
           level: 'warn',
-          msg: `${prefix}${day.label}: Sluttid ${minutesToTime(endTime)} (efter 15:00)`,
+          msg: `${prefix}${day.label}: Sluttid ${minutesToTime(endTime)} (efter ${minutesToTime(rules.maxEndTime.value)})`,
         });
       }
     }
   }
 
+  // Rule 4: Teacher hours
   const teacherHours = weeklyTeacher / 60;
-  if (teacherHours > MAX_TEACHER_HOURS) {
+  if (rules.maxTeacherHours.enabled && teacherHours > rules.maxTeacherHours.value) {
     warnings.push({
       level: 'error',
-      msg: `${prefix}Lärartid ${teacherHours.toFixed(1)} h/v överstiger max ${MAX_TEACHER_HOURS} h`,
+      msg: `${prefix}Lärartid ${teacherHours.toFixed(1)} h/v överstiger max ${rules.maxTeacherHours.value} h`,
     });
   }
 
@@ -136,6 +142,7 @@ export function validateSchedule(
   schedule: FullSchedule,
   cls: string,
   targets: GradeTargets = DEFAULT_LGR22_TARGETS,
+  rules: ValidationRules = DEFAULT_RULES,
   week?: WeekKey,
   customTypes: CustomPassType[] = [],
 ): ValidationResult {
@@ -146,7 +153,7 @@ export function validateSchedule(
 
   const weekKey = week ?? 'A';
   const classSchedule = weekSchedule[weekKey];
-  return validateClassSchedule(classSchedule, cls, targets, week ? `Vecka ${week}` : undefined, customTypes);
+  return validateClassSchedule(classSchedule, cls, targets, rules, week ? `Vecka ${week}` : undefined, customTypes);
 }
 
 function isTeachingPass(p: SchedulePass): boolean {

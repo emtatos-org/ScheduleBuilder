@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { CLASSES, DEFAULT_LGR22_TARGETS, PASS_TYPES } from '../constants';
-import type { FullSchedule, GradeTargets, PassColors, WeekKey, CustomPassType } from '../types';
+import type { FullSchedule, GradeTargets, PassColors, WeekKey, CustomPassType, ValidationRules } from '../types';
+import { minutesToTime } from '../utils';
 import { getPassLabel } from '../utils';
 import { migrateSchedule } from '../types';
 import type { VariantStore } from '../storage';
@@ -24,6 +25,9 @@ interface SidebarProps {
   targets: GradeTargets;
   onUpdateTarget: (grade: number, value: number) => void;
   onResetTargets: () => void;
+  rules: ValidationRules;
+  onUpdateRule: <K extends keyof ValidationRules>(key: K, update: Partial<ValidationRules[K]>) => void;
+  onResetRules: () => void;
   passColors: PassColors;
   onUpdateColor: (passType: string, color: string) => void;
   onResetColors: () => void;
@@ -69,6 +73,9 @@ export default function Sidebar({
   targets,
   onUpdateTarget,
   onResetTargets,
+  rules,
+  onUpdateRule,
+  onResetRules,
   passColors,
   onUpdateColor,
   onResetColors,
@@ -315,6 +322,141 @@ export default function Sidebar({
         >
           <span>{String.fromCodePoint(0x1F504)}</span>
           <span>Återställ Lgr22</span>
+        </button>
+      </div>
+
+      {/* ── REGLER section ──────────────────────────────────── */}
+      <div className="mb-6">
+        <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+          Regler
+        </h2>
+        <div className="space-y-1.5">
+          {/* Minsta passlängd */}
+          <div className="flex items-center gap-1.5" style={{ opacity: rules.minPassDuration.enabled ? 1 : 0.5 }}>
+            <input
+              type="checkbox"
+              checked={rules.minPassDuration.enabled}
+              onChange={(e) => onUpdateRule('minPassDuration', { enabled: e.target.checked })}
+              className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 shrink-0"
+            />
+            <span className="text-xs text-gray-600 flex-1">Minsta passlängd</span>
+            <input
+              type="number"
+              value={rules.minPassDuration.value}
+              onChange={(e) => {
+                const val = parseInt(e.target.value, 10);
+                if (!isNaN(val)) onUpdateRule('minPassDuration', { value: val });
+              }}
+              disabled={!rules.minPassDuration.enabled}
+              className="w-[50px] text-right text-xs border border-gray-300 rounded px-1.5 py-1 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400"
+            />
+            <span className="text-xs text-gray-400">min</span>
+          </div>
+
+          {/* Senaste sluttid */}
+          <div className="flex items-center gap-1.5" style={{ opacity: rules.maxEndTime.enabled ? 1 : 0.5 }}>
+            <input
+              type="checkbox"
+              checked={rules.maxEndTime.enabled}
+              onChange={(e) => onUpdateRule('maxEndTime', { enabled: e.target.checked })}
+              className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 shrink-0"
+            />
+            <span className="text-xs text-gray-600 flex-1">Senaste sluttid</span>
+            <input
+              type="time"
+              value={minutesToTime(rules.maxEndTime.value)}
+              onChange={(e) => {
+                const [h, m] = e.target.value.split(':').map(Number);
+                if (!isNaN(h) && !isNaN(m)) onUpdateRule('maxEndTime', { value: h * 60 + m });
+              }}
+              disabled={!rules.maxEndTime.enabled}
+              className="w-[70px] text-right text-xs border border-gray-300 rounded px-1.5 py-1 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400"
+            />
+          </div>
+
+          {/* Lunchfönster */}
+          <div className="flex items-center gap-1.5" style={{ opacity: rules.lunchWindow.enabled ? 1 : 0.5 }}>
+            <input
+              type="checkbox"
+              checked={rules.lunchWindow.enabled}
+              onChange={(e) => onUpdateRule('lunchWindow', { enabled: e.target.checked })}
+              className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 shrink-0"
+            />
+            <span className="text-xs text-gray-600 shrink-0">Lunchfönster</span>
+            <input
+              type="time"
+              value={minutesToTime(rules.lunchWindow.start)}
+              onChange={(e) => {
+                const [h, m] = e.target.value.split(':').map(Number);
+                if (!isNaN(h) && !isNaN(m)) onUpdateRule('lunchWindow', { start: h * 60 + m });
+              }}
+              disabled={!rules.lunchWindow.enabled}
+              className="w-[60px] text-xs border border-gray-300 rounded px-1 py-1 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400"
+            />
+            <span className="text-xs text-gray-400">–</span>
+            <input
+              type="time"
+              value={minutesToTime(rules.lunchWindow.end)}
+              onChange={(e) => {
+                const [h, m] = e.target.value.split(':').map(Number);
+                if (!isNaN(h) && !isNaN(m)) onUpdateRule('lunchWindow', { end: h * 60 + m });
+              }}
+              disabled={!rules.lunchWindow.enabled}
+              className="w-[60px] text-xs border border-gray-300 rounded px-1 py-1 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400"
+            />
+          </div>
+
+          {/* Max lärartid */}
+          <div className="flex items-center gap-1.5" style={{ opacity: rules.maxTeacherHours.enabled ? 1 : 0.5 }}>
+            <input
+              type="checkbox"
+              checked={rules.maxTeacherHours.enabled}
+              onChange={(e) => onUpdateRule('maxTeacherHours', { enabled: e.target.checked })}
+              className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 shrink-0"
+            />
+            <span className="text-xs text-gray-600 flex-1">Max lärartid</span>
+            <input
+              type="number"
+              step="0.5"
+              value={rules.maxTeacherHours.value}
+              onChange={(e) => {
+                const val = parseFloat(e.target.value);
+                if (!isNaN(val)) onUpdateRule('maxTeacherHours', { value: val });
+              }}
+              disabled={!rules.maxTeacherHours.enabled}
+              className="w-[50px] text-right text-xs border border-gray-300 rounded px-1.5 py-1 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400"
+            />
+            <span className="text-xs text-gray-400">h/v</span>
+          </div>
+
+          {/* Minsta rast */}
+          <div className="flex items-center gap-1.5" style={{ opacity: rules.minBreakBetween.enabled ? 1 : 0.5 }}>
+            <input
+              type="checkbox"
+              checked={rules.minBreakBetween.enabled}
+              onChange={(e) => onUpdateRule('minBreakBetween', { enabled: e.target.checked })}
+              className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 shrink-0"
+            />
+            <span className="text-xs text-gray-600 flex-1">Minsta rast</span>
+            <input
+              type="number"
+              value={rules.minBreakBetween.value}
+              onChange={(e) => {
+                const val = parseInt(e.target.value, 10);
+                if (!isNaN(val)) onUpdateRule('minBreakBetween', { value: val });
+              }}
+              disabled={!rules.minBreakBetween.enabled}
+              className="w-[50px] text-right text-xs border border-gray-300 rounded px-1.5 py-1 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400"
+            />
+            <span className="text-xs text-gray-400">min</span>
+          </div>
+        </div>
+        <button
+          onClick={onResetRules}
+          className="mt-2 flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium border border-gray-300 text-gray-600 hover:bg-gray-50 transition-colors w-full justify-center"
+        >
+          <span>{String.fromCodePoint(0x1F504)}</span>
+          <span>Återställ regler</span>
         </button>
       </div>
 
