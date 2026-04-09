@@ -35,6 +35,13 @@ interface SidebarProps {
   onAddCustomType: (ct: CustomPassType) => void;
   onDeleteCustomType: (value: string) => void;
   onUpdateCustomTypeColor: (value: string, color: string) => void;
+  syncCode: string | null;
+  syncStatus: 'idle' | 'syncing' | 'error';
+  lastSynced: string | null;
+  onSyncConnect: (code: string) => void;
+  onSyncCreate: (code: string) => void;
+  onSyncNow: () => void;
+  onSyncDisconnect: () => void;
 }
 
 const VIEWS = [
@@ -42,6 +49,56 @@ const VIEWS = [
   { key: 'statistik', label: 'Statistik', icon: '\u{1F4CA}' },
   { key: 'parallell', label: 'Parallellitet', icon: '\u{1F500}' },
 ];
+
+function SyncConnectForm({ onConnect, onCreate }: { onConnect: (code: string) => void; onCreate: (code: string) => void }) {
+  const [code, setCode] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleConnect = () => {
+    if (!code.trim()) return;
+    setLoading(true);
+    onConnect(code.trim());
+  };
+
+  const handleCreate = () => {
+    const userCode = code.trim();
+    const finalCode = userCode || (Math.random().toString(36).substring(2, 8).toUpperCase());
+    setLoading(true);
+    onCreate(finalCode);
+  };
+
+  return (
+    <div className="p-2.5 rounded-lg border border-gray-200 bg-gray-50 space-y-2">
+      <p className="text-[10px] text-gray-500 leading-tight">
+        Ange synk-kod f&ouml;r att dela schemat mellan enheter.
+      </p>
+      <input
+        type="text"
+        placeholder="T.ex. EMMA-7A"
+        value={code}
+        onChange={(e) => setCode(e.target.value.toUpperCase())}
+        className="w-full text-xs border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 uppercase"
+        disabled={loading}
+      />
+      <div className="flex gap-2">
+        <button
+          onClick={handleConnect}
+          disabled={!code.trim() || loading}
+          className="flex-1 px-2 py-1.5 rounded text-xs font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50"
+        >
+          {loading ? 'Ansluter...' : 'Anslut'}
+        </button>
+        <button
+          onClick={handleCreate}
+          disabled={loading}
+          className="flex-1 px-2 py-1.5 rounded text-xs font-medium border border-green-400 text-green-700 hover:bg-green-50 transition-colors disabled:opacity-50"
+        >
+          Skapa ny kod
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
@@ -83,6 +140,13 @@ export default function Sidebar({
   onAddCustomType,
   onDeleteCustomType,
   onUpdateCustomTypeColor,
+  syncCode,
+  syncStatus,
+  lastSynced,
+  onSyncConnect,
+  onSyncCreate,
+  onSyncNow,
+  onSyncDisconnect,
 }: SidebarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importError, setImportError] = useState<string | null>(null);
@@ -178,6 +242,51 @@ export default function Sidebar({
         <p className="text-xs text-gray-400 mt-1">
           {'v11 · Åk 4–9 · Lgr22'}
         </p>
+      </div>
+
+      {/* ── SYNK section ────────────────────────────────────── */}
+      <div className="mb-6">
+        <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+          Synk
+        </h2>
+        {syncCode ? (
+          <div className="p-2.5 rounded-lg border border-gray-200 bg-gray-50 space-y-2">
+            <div className="flex items-center gap-2">
+              <span style={{ fontSize: 10 }}>
+                {syncStatus === 'syncing' ? '\uD83D\uDD04' : syncStatus === 'error' ? '\uD83D\uDD34' : '\uD83D\uDFE2'}
+              </span>
+              <span className="text-xs font-medium text-gray-700 truncate">
+                Ansluten: {syncCode}
+              </span>
+              {syncStatus === 'syncing' && (
+                <span className="text-[10px] text-gray-400 animate-pulse">Synkar...</span>
+              )}
+            </div>
+            {lastSynced && (
+              <p className="text-[10px] text-gray-400">Senast synkad: {lastSynced}</p>
+            )}
+            {syncStatus === 'error' && (
+              <p className="text-[10px] text-red-500">Synkfel – f\u00f6rs\u00f6k igen</p>
+            )}
+            <div className="flex gap-2">
+              <button
+                onClick={onSyncNow}
+                disabled={syncStatus === 'syncing'}
+                className="flex-1 px-2 py-1.5 rounded text-xs font-medium border border-blue-400 text-blue-700 hover:bg-blue-50 transition-colors disabled:opacity-50"
+              >
+                Synka nu
+              </button>
+              <button
+                onClick={onSyncDisconnect}
+                className="flex-1 px-2 py-1.5 rounded text-xs font-medium border border-gray-300 text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                Koppla bort
+              </button>
+            </div>
+          </div>
+        ) : (
+          <SyncConnectForm onConnect={onSyncConnect} onCreate={onSyncCreate} />
+        )}
       </div>
 
       {/* ── SCHEMAN section ──────────────────────────────────── */}

@@ -14,6 +14,8 @@ import { validateSchedule } from './validation';
 import { useScheduleHistory } from './hooks/useScheduleHistory';
 import type { DayKey, FullSchedule, SchedulePass, GradeTargets, PassColors, WeekKey, CustomPassType, ValidationRules } from './types';
 
+const API_URL = import.meta.env.VITE_API_URL || 'https://schedulebuilder-api.onrender.com';
+
 interface EditingPass {
   cls: string;
   dayKey: DayKey;
@@ -65,6 +67,164 @@ function App() {
   const [editingPass, setEditingPass] = useState<EditingPass | null>(null);
   const [addingPass, setAddingPass] = useState<AddingPass | null>(null);
   const [warningsExpanded, setWarningsExpanded] = useState<Record<string, boolean>>({});
+
+  /* ── Cloud sync state ──────────────────────────────────────── */
+
+  const [syncCode, setSyncCode] = useState<string | null>(() => {
+    return localStorage.getItem('schedulebuilder-sync-code');
+  });
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'error'>('idle');
+  const [lastSynced, setLastSynced] = useState<string | null>(null);
+  const syncSkipRef = useRef(false);
+
+  const handleSyncConnect = async (code: string) => {
+    const upper = code.toUpperCase().trim();
+    if (!upper) return;
+    setSyncStatus('syncing');
+    try {
+      const resp = await fetch(`${API_URL}/api/sync/${upper}`);
+      if (resp.ok) {
+        const { data } = await resp.json();
+        if (data) {
+          if (data.schedule) {
+            const sched = data.schedule as FullSchedule;
+            setScheduleDirect(sched);
+            clearHistory();
+            // Rebuild variant store from cloud data
+            const now = new Date().toISOString();
+            if (data.variants) {
+              const store: VariantStore = data.variants as VariantStore;
+              store.variants = store.variants.map(v => ({
+                ...v,
+                schedule: v.schedule,
+              }));
+              setVariantStore(store);
+              saveVariants(store);
+              const active = store.variants.find(v => v.id === store.activeVariantId);
+              if (active) {
+                setScheduleDirect(active.schedule);
+                clearHistory();
+              }
+            } else {
+              const variant: ScheduleVariant = {
+                id: crypto.randomUUID(),
+                name: 'Synkad',
+                schedule: sched,
+                createdAt: now,
+                updatedAt: now,
+              };
+              const store: VariantStore = { activeVariantId: variant.id, variants: [variant] };
+              setVariantStore(store);
+              saveVariants(store);
+            }
+            if (data.targets) setTargets(data.targets);
+            if (data.customTypes) setCustomTypes(data.customTypes);
+            if (data.passColors) setPassColors(data.passColors);
+          }
+        }
+      }
+      // Even if 404, we connect — the code will be created on next push
+      localStorage.setItem('schedulebuilder-sync-code', upper);
+      setSyncCode(upper);
+      setSyncStatus('idle');
+      setLastSynced(new Date().toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' }));
+    } catch {
+      setSyncStatus('error');
+    }
+  };
+
+  const handleSyncCreate = async (code: string) => {
+    const upper = code.toUpperCase().trim();
+    if (!upper) return;
+    localStorage.setItem('schedulebuilder-sync-code', upper);
+    setSyncCode(upper);
+    // Push current data immediately
+    setSyncStatus('syncing');
+    try {
+      const active = variantStore.variants.find(v => v.id === variantStore.activeVariantId);
+      const syncData = {
+        schedule: active?.schedule ?? schedule,
+        variants: variantStore,
+        targets,
+        customTypes,
+        passColors,
+      };
+      await fetch(`${API_URL}/api/sync/${upper}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: syncData }),
+      });
+      setSyncStatus('idle');
+      setLastSynced(new Date().toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' }));
+    } catch {
+      setSyncStatus('error');
+    }
+  };
+
+  const handleSyncNow = async () => {
+    if (!syncCode) return;
+    setSyncStatus('syncing');
+    try {
+      const resp = await fetch(`${API_URL}/api/sync/${syncCode}`);
+      if (resp.ok) {
+        const { data, updated_at } = await resp.json();
+        if (data && updated_at) {
+          const cloudTime = new Date(updated_at).getTime();
+          const localTime = Date.now();
+          // If cloud is newer (within last sync cycle), pull from cloud
+          if (data.schedule && cloudTime > localTime - 5000) {
+            if (confirm('Molnet har nyare data. Vill du ladda den? Lokala ändringar skrivs över.')) {
+              syncSkipRef.current = true;
+              if (data.variants) {
+                const store: VariantStore = data.variants as VariantStore;
+                setVariantStore(store);
+                saveVariants(store);
+                const active = store.variants.find((v: ScheduleVariant) => v.id === store.activeVariantId);
+                if (active) {
+                  setScheduleDirect(active.schedule);
+                  clearHistory();
+                }
+              } else {
+                setScheduleDirect(data.schedule);
+                clearHistory();
+              }
+              if (data.targets) setTargets(data.targets);
+              if (data.customTypes) setCustomTypes(data.customTypes);
+              if (data.passColors) setPassColors(data.passColors);
+              setSyncStatus('idle');
+              setLastSynced(new Date().toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' }));
+              return;
+            }
+          }
+        }
+      }
+      // Push local to cloud
+      const active = variantStore.variants.find(v => v.id === variantStore.activeVariantId);
+      const syncData = {
+        schedule: active?.schedule ?? schedule,
+        variants: variantStore,
+        targets,
+        customTypes,
+        passColors,
+      };
+      await fetch(`${API_URL}/api/sync/${syncCode}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: syncData }),
+      });
+      setSyncStatus('idle');
+      setLastSynced(new Date().toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' }));
+    } catch {
+      setSyncStatus('error');
+    }
+  };
+
+  const handleSyncDisconnect = () => {
+    localStorage.removeItem('schedulebuilder-sync-code');
+    setSyncCode(null);
+    setSyncStatus('idle');
+    setLastSynced(null);
+  };
 
   const [targets, setTargets] = useState<GradeTargets>(() => {
     const saved = localStorage.getItem('schedulebuilder-targets');
@@ -186,6 +346,38 @@ function App() {
       return updated;
     });
   }, [schedule]);
+
+  // Auto-sync: debounce 3 seconds after schedule changes
+  useEffect(() => {
+    if (!syncCode) return;
+    if (syncSkipRef.current) {
+      syncSkipRef.current = false;
+      return;
+    }
+    const timer = setTimeout(async () => {
+      try {
+        setSyncStatus('syncing');
+        const active = variantStore.variants.find(v => v.id === variantStore.activeVariantId);
+        const syncData = {
+          schedule: active?.schedule ?? schedule,
+          variants: variantStore,
+          targets,
+          customTypes,
+          passColors,
+        };
+        await fetch(`${API_URL}/api/sync/${syncCode}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data: syncData }),
+        });
+        setSyncStatus('idle');
+        setLastSynced(new Date().toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' }));
+      } catch {
+        setSyncStatus('error');
+      }
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [schedule, syncCode, variantStore, targets, customTypes, passColors]);
 
   const toggleClass = (cls: string) => {
     setSelectedClasses(prev =>
@@ -477,6 +669,13 @@ function App() {
           onAddCustomType={handleAddCustomType}
           onDeleteCustomType={handleDeleteCustomType}
           onUpdateCustomTypeColor={handleUpdateCustomTypeColor}
+          syncCode={syncCode}
+          syncStatus={syncStatus}
+          lastSynced={lastSynced}
+          onSyncConnect={handleSyncConnect}
+          onSyncCreate={handleSyncCreate}
+          onSyncNow={handleSyncNow}
+          onSyncDisconnect={handleSyncDisconnect}
         />
       </div>
 
