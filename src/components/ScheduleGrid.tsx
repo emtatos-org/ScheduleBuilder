@@ -39,18 +39,20 @@ function PassBlock({
       style={{
         top: `${top}px`,
         height: `${height}px`,
-        backgroundColor: `${color}18`,
-        borderLeft: `3px solid ${color}`,
+        backgroundColor: `${color}30`,
+        border: `1px solid ${color}66`,
+        borderLeft: `4px solid ${color}`,
+        color: '#1E293B',
       }}
     >
       <div className="px-2 py-1">
-        <p className="text-xs font-bold truncate" style={{ color }}>
+        <span style={{ fontWeight: 700, color: '#1E293B', fontSize: 11 }} className="block truncate">
           {pass.label}
-        </p>
+        </span>
         {showTime && (
-          <p className="text-[10px] text-gray-500">
+          <span style={{ fontSize: 10, color: '#475569', fontWeight: 500 }} className="block">
             {minutesToTime(pass.start)}–{minutesToTime(pass.start + pass.duration)}
-          </p>
+          </span>
         )}
       </div>
     </div>

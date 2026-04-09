@@ -170,7 +170,7 @@ export default function Sidebar({
   };
 
   return (
-    <aside className="w-[220px] lg:w-[220px] md:w-[180px] shrink-0 bg-white border-r border-gray-200 flex flex-col p-4 overflow-y-auto">
+    <aside data-sidebar className="w-[220px] lg:w-[220px] md:w-[180px] shrink-0 bg-white border-r border-gray-200 flex flex-col p-4 overflow-y-auto">
       <div className="mb-6">
         <h1 className="text-lg font-bold text-gray-800">
           {'\u{1F4C5}'} Schemabyggare

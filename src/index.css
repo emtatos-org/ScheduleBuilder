@@ -1,1 +1,20 @@
 @import "tailwindcss";
+
+@media print {
+  /* Starkare bakgrundsfärger vid utskrift */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Dölj sidebaren vid utskrift */
+  nav, [data-sidebar] {
+    display: none !important;
+  }
+
+  /* Schemat tar hela bredden */
+  main {
+    margin: 0 !important;
+    padding: 8px !important;
+  }
+}
